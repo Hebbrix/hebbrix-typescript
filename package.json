@@ -1,0 +1,72 @@
+{
+  "name": "hebbrix",
+  "version": "2.1.0",
+  "description": "Advanced Memory API for AI Agents with Reinforcement Learning - TypeScript/JavaScript SDK",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "memory",
+    "agents",
+    "llm",
+    "chatbot",
+    "rag",
+    "vector-search",
+    "knowledge-graph",
+    "embeddings",
+    "reasoning",
+    "reinforcement-learning",
+    "temporal",
+    "procedural-memory",
+    "working-memory",
+    "memory-api",
+    "typescript",
+    "javascript"
+  ],
+  "author": "Hebbrix Team <support@hebbrix.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hebbrix/hebbrix-typescript.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hebbrix/hebbrix-typescript/issues"
+  },
+  "homepage": "https://hebbrix.com",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.1",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
