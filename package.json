@@ -1,7 +1,7 @@
 {
   "name": "hebbrix",
-  "version": "2.2.1",
-  "description": "Advanced Memory API for AI Agents with Reinforcement Learning - TypeScript/JavaScript SDK",
+  "version": "2.3.1",
+  "description": "Typed TypeScript client for Hebbrix memory, retrieval, and outcome-learning APIs",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -51,9 +51,9 @@
     "url": "git+https://github.com/Hebbrix/hebbrix-typescript.git"
   },
   "bugs": {
-    "url": "https://github.com/hebbrix/hebbrix-typescript/issues"
+    "url": "https://github.com/Hebbrix/hebbrix-typescript/issues"
   },
-  "homepage": "https://hebbrix.com",
+  "homepage": "https://docs.hebbrix.com",
   "publishConfig": {
     "access": "public"
   },

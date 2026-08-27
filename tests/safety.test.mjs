@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { enforceSearchSafety, MemoryClient } from "../dist/index.mjs";
+import {
+  enforceSearchSafety,
+  EntitlementError,
+  IndexingTimeoutError,
+  MemoryClient,
+} from "../dist/index.mjs";
 
 const supported = {
   query: "what tool?",
@@ -353,4 +358,140 @@ test("GA high-level resources expose the public contract surface", () => {
   }
   assert.equal(typeof client.searchWithProof, "function");
   assert.equal(typeof client.reason, "function");
+});
+
+test("advanced resources use the exact versioned wire contract", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url: String(url), options });
+    const path = new URL(url).pathname;
+    const payload = path === "/v1/collections"
+      ? { items: [{ id: "collection-1", name: "test" }], has_more: false, limit: 10 }
+      : { status: "success" };
+    return new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    const client = new MemoryClient({ apiKey: "test", baseUrl: "https://unit.test" });
+    const page = await client.collections.list({ limit: 10 });
+    await client.rl.getMetrics();
+    await client.temporal.addFact({
+      subject: "release",
+      predicate: "status",
+      object: "active",
+      valid_from: "2026-08-27T00:00:00Z",
+    });
+    await client.workingMemory.add({
+      session_id: "session-1",
+      role: "user",
+      content: "hello",
+    });
+    await client.consolidation.getStats("collection-1");
+    await client.memoryTools.insert({
+      collection_id: "collection-1",
+      content: "durable fact",
+      position: 0,
+      reason: "contract test",
+    });
+    assert.deepEqual(page.items, [{ id: "collection-1", name: "test" }]);
+    assert.deepEqual(
+      requests.map(({ url, options }) => [new URL(url).pathname, options.method]),
+      [
+        ["/v1/collections", "GET"],
+        ["/v1/rl/metrics", "GET"],
+        ["/v1/temporal/facts", "POST"],
+        ["/v1/working-memory/add", "POST"],
+        ["/v1/consolidation/stats/collection-1", "GET"],
+        ["/v1/memory-tools/insert", "POST"],
+      ],
+    );
+    const temporalBody = JSON.parse(requests[2].options.body);
+    assert.equal(temporalBody.valid_from, "2026-08-27T00:00:00Z");
+    assert.equal(temporalBody.subject_type, "ENTITY");
+    assert.equal(temporalBody.object_type, "ENTITY");
+    assert.deepEqual(JSON.parse(requests[5].options.body).metadata, {
+      requested_position: 0,
+      reason: "contract test",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("entitlement failures preserve the stable code and request id", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    JSON.stringify({
+      detail: {
+        code: "RL_METRICS_ENTITLEMENT_REQUIRED",
+        message: "RL metrics require Pro",
+        required_plan: "pro",
+        current_plan: "free",
+        request_id: "request-1",
+      },
+    }),
+    { status: 403, headers: { "content-type": "application/json" } },
+  );
+  try {
+    const client = new MemoryClient({ apiKey: "test", baseUrl: "https://unit.test" });
+    await assert.rejects(
+      client.rl.getMetrics(),
+      (error) => {
+        assert.ok(error instanceof EntitlementError);
+        assert.equal(error.code, "RL_METRICS_ENTITLEMENT_REQUIRED");
+        assert.equal(error.requestId, "request-1");
+        assert.equal(error.details.required_plan, "pro");
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("batch client deadline exposes the durable receipt without rewriting", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === "/v1/memories/batch") {
+      return new Response(JSON.stringify({
+        accepted: true,
+        durable: true,
+        created: 1,
+        failed: 0,
+        memory_ids: ["mem-1"],
+        results: [{ id: "mem-1", memory_id: "mem-1", processing_status: "processing" }],
+        processing_status: "processing",
+        searchable: false,
+        status_url: "/v1/memories/mem-1",
+      }), { status: 202, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({
+      id: "mem-1",
+      processing_status: "processing",
+      searchable: false,
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    const client = new MemoryClient({ apiKey: "test", baseUrl: "https://unit.test" });
+    await assert.rejects(
+      client.memories.createBatch({
+        memories: [{ content: "durable fact" }],
+        wait_for_index: true,
+        index_timeout_ms: 0,
+      }),
+      (error) => {
+        assert.ok(error instanceof IndexingTimeoutError);
+        assert.deepEqual(error.memoryIds, ["mem-1"]);
+        assert.equal(error.statusUrl, "/v1/memories/mem-1");
+        assert.equal(error.receipt.durable, true);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

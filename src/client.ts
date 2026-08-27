@@ -15,7 +15,6 @@ import {
   WorkingMemoryResource,
   ConsolidationResource,
   MemoryToolsResource,
-  WorldModelResource,
   ProofLoopResource,
 } from "./resources";
 import {
@@ -32,6 +31,7 @@ import {
   NotFoundError,
   RateLimitError,
   ServerError,
+  EntitlementError,
 } from "./errors";
 
 export class MemoryClient {
@@ -51,7 +51,6 @@ export class MemoryClient {
   public workingMemory: WorkingMemoryResource;
   public consolidation: ConsolidationResource;
   public memoryTools: MemoryToolsResource;
-  public worldModel: WorldModelResource;
   public proofloop: ProofLoopResource;
 
   constructor(config: ClientConfig = {}) {
@@ -75,14 +74,13 @@ export class MemoryClient {
     this.workingMemory = new WorkingMemoryResource(this);
     this.consolidation = new ConsolidationResource(this);
     this.memoryTools = new MemoryToolsResource(this);
-    this.worldModel = new WorldModelResource(this);
     this.proofloop = new ProofLoopResource(this);
   }
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "hebbrix-typescript/2.2.1",
+      "User-Agent": "hebbrix-typescript/2.3.1",
     };
 
     if (this.apiKey) {
@@ -94,25 +92,45 @@ export class MemoryClient {
 
   private handleError(response: Response, data: any): never {
     const statusCode = response.status;
-    const detail = data?.detail;
+    const envelope = data?.error || data?.detail || {};
+    const nested = envelope?.message;
+    const details = nested && typeof nested === "object" ? nested : envelope;
     const message =
-      data?.error?.message ||
-      (typeof detail === "string" ? detail : detail?.message) ||
+      details?.message ||
+      (typeof nested === "string" ? nested : undefined) ||
       response.statusText;
+    const code = details?.code || envelope?.code;
+    const requestId =
+      details?.request_id ||
+      envelope?.request_id ||
+      response.headers.get("X-Request-ID") ||
+      undefined;
 
     if (statusCode === 401) {
-      throw new AuthenticationError(message);
+      throw new AuthenticationError(message, { code, requestId, details });
     } else if (statusCode === 404) {
-      throw new NotFoundError(message);
+      throw new NotFoundError(message, { code, requestId, details });
     } else if (statusCode === 422) {
       const errors = data?.error?.details || [];
-      throw new ValidationError(message, errors);
+      throw new ValidationError(message, errors, { code, requestId, details });
     } else if (statusCode === 429) {
-      throw new RateLimitError(message);
+      throw new RateLimitError(message, { code, requestId, details });
     } else if (statusCode >= 500) {
-      throw new ServerError(message);
+      throw new ServerError(message, { code, requestId, details });
+    } else if (
+      (statusCode === 402 || statusCode === 403) &&
+      (String(code || "").includes("ENTITLEMENT") ||
+        ["feature_not_available", "tier_upgrade_required"].includes(
+          details?.error,
+        ))
+    ) {
+      throw new EntitlementError(message, statusCode, {
+        code,
+        requestId,
+        details,
+      });
     } else {
-      throw new HebbrixError(message, statusCode);
+      throw new HebbrixError(message, statusCode, { code, requestId, details });
     }
   }
 
@@ -123,8 +141,11 @@ export class MemoryClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
-    const { headers: requestHeaders, signal: requestSignal, ...requestOptions } =
-      options;
+    const {
+      headers: requestHeaders,
+      signal: requestSignal,
+      ...requestOptions
+    } = options;
     const response = await fetch(url, {
       ...requestOptions,
       method,
@@ -156,6 +177,35 @@ export class MemoryClient {
 
     if (!response.ok) {
       this.handleError(response, data);
+    }
+
+    // Successful durable-write metadata is split between the JSON receipt and
+    // transport headers. Preserve it in one object before returning so a later
+    // client-side readiness timeout can retain every recovery identifier.
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const requestId = response.headers.get("X-Request-ID");
+      const statusUrl = response.headers.get("Location");
+      const outboxEventId = response.headers.get("X-Hebbrix-Index-Event");
+      const retryAfter = response.headers.get("Retry-After");
+      const idempotencyReplay = response.headers.get("X-Idempotent-Replay");
+      data = {
+        ...data,
+        ...(data.request_id === undefined && requestId
+          ? { request_id: requestId }
+          : {}),
+        ...(data.status_url === undefined && statusUrl
+          ? { status_url: statusUrl }
+          : {}),
+        ...(data.outbox_event_id === undefined && outboxEventId
+          ? { outbox_event_id: outboxEventId }
+          : {}),
+        ...(data.retry_after === undefined && retryAfter
+          ? { retry_after: retryAfter }
+          : {}),
+        ...(data.idempotency_replay === undefined && idempotencyReplay
+          ? { idempotency_replay: idempotencyReplay.toLowerCase() === "true" }
+          : {}),
+      };
     }
 
     return data as T;

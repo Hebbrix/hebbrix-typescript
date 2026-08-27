@@ -43,6 +43,12 @@ export interface Memory {
   source_reference?: string;
   access_count: number;
   last_accessed_at?: string;
+  /** Authoritative indexing state returned by GET /v1/memories/{id}. */
+  processing_status?: string;
+  /** True only when the memory is available to search. */
+  searchable?: boolean;
+  outbox_event_id?: string;
+  status_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -170,6 +176,12 @@ export interface CreateMemoryParams {
   source?: string;
   /** Stable retry key sent as the Idempotency-Key transport header. */
   idempotency_key?: string;
+  /** Optional caller cancellation signal; it is never serialized. */
+  signal?: AbortSignal;
+  /** Client-side readiness deadline used only when wait_for_index=true. */
+  index_timeout_ms?: number;
+  /** Poll interval for a durable pending receipt. */
+  index_poll_interval_ms?: number;
 }
 
 export interface MemoryAddResult {
@@ -178,6 +190,7 @@ export interface MemoryAddResult {
   event: "ADD" | "UPDATE" | "NOOP" | string;
   memory?: string;
   reason?: string;
+  processing_status?: string;
 }
 
 export interface MemoryAddResponse {
@@ -187,6 +200,9 @@ export interface MemoryAddResponse {
   searchable: boolean;
   outbox_event_id?: string;
   status_url?: string;
+  idempotency_replay?: boolean;
+  request_id?: string;
+  retry_after?: string;
   job_id?: string;
   created_count: number;
   updated_count: number;
@@ -217,11 +233,17 @@ export interface BatchMemoryCreateParams {
   idempotency_key?: string;
   /** Optional caller cancellation signal; it is never serialized. */
   signal?: AbortSignal;
+  /** Client-side readiness deadline used only when wait_for_index=true. */
+  index_timeout_ms?: number;
+  /** Poll interval for a durable 202 receipt. */
+  index_poll_interval_ms?: number;
 }
 
 export interface BatchMemoryResponse {
   created: number;
   failed: number;
+  accepted: boolean;
+  durable: boolean;
   memory_ids: string[];
   errors: string[];
   results: Array<{
@@ -233,6 +255,8 @@ export interface BatchMemoryResponse {
   searchable: boolean;
   outbox_event_id?: string;
   status_url?: string;
+  idempotency_replay?: boolean;
+  request_id?: string;
 }
 
 export interface UpdateMemoryParams {
@@ -270,8 +294,10 @@ export interface ReasonParams {
 }
 
 export interface ListParams {
-  skip?: number;
+  cursor?: string;
   limit?: number;
+  name?: string;
+  name_prefix?: string;
 }
 
 export interface MemoryListParams {

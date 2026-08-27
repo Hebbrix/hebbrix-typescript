@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.3.1 — 2026-08-27
+
+- Make single-memory `wait_for_index` a client-enforced readiness contract:
+  submit exactly one write, poll the durable receipt to searchable completion,
+  preserve receipt and idempotency context on timeout or cancellation, and
+  reject terminal indexing states.
+
+## 2.3.0 — 2026-08-27
+
+- Reconcile every exported advanced method with the canonical public OpenAPI,
+  including temporal, working-memory, consolidation, memory-tool, and RL routes.
+- Correct `collections.list()` to return `CursorPage<Collection>` at both type
+  and runtime levels, with clean-tarball compile and runtime coverage.
+- Treat durable-but-indexing batch results as `202`, poll them through the SDK,
+  and throw `IndexingTimeoutError` with the durable receipt on client deadline.
+- Preserve structured entitlement metadata in `EntitlementError`.
+- Add a route-manifest release gate and clean-tarball installation verification.
+- Withdraw the experimental World Model from the public SDK until a trained,
+  versioned production model artifact and serving contract exist.
+- Publish compatibility through `GET /v1/release`; remove the broken repository
+  metadata and retain valid artifact and support links.
+
 ## 2.2.1 — 2026-08-26
 
 - Preserve bearer authentication, content type, user agent, idempotency, and
