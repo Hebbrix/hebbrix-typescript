@@ -1,6 +1,6 @@
 {
   "name": "hebbrix",
-  "version": "2.1.0",
+  "version": "2.2.1",
   "description": "Advanced Memory API for AI Agents with Reinforcement Learning - TypeScript/JavaScript SDK",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -14,12 +14,13 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "test": "jest",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run build"

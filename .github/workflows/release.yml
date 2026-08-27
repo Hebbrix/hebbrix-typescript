@@ -47,8 +47,7 @@ jobs:
 
       - name: Build and inspect package
         run: |
-          npm run build
-          npm test -- --runInBand --passWithNoTests
+          npm test
           npm audit --omit=dev --audit-level=high
           npm pack --dry-run
 
