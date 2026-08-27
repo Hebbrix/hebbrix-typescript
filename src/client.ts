@@ -6,6 +6,8 @@ import {
   AuthResource,
   CollectionsResource,
   MemoriesResource,
+  MemoryJobsResource,
+  CorrectionsResource,
   SearchResource,
   RLResource,
   ProceduralResource,
@@ -40,6 +42,8 @@ export class MemoryClient {
   public auth: AuthResource;
   public collections: CollectionsResource;
   public memories: MemoriesResource;
+  public memoryJobs: MemoryJobsResource;
+  public corrections: CorrectionsResource;
   private searchResource: SearchResource;
   public rl: RLResource;
   public procedural: ProceduralResource;
@@ -62,6 +66,8 @@ export class MemoryClient {
     this.auth = new AuthResource(this);
     this.collections = new CollectionsResource(this);
     this.memories = new MemoriesResource(this);
+    this.memoryJobs = new MemoryJobsResource(this);
+    this.corrections = new CorrectionsResource(this);
     this.searchResource = new SearchResource(this);
     this.rl = new RLResource(this);
     this.procedural = new ProceduralResource(this);
@@ -76,7 +82,7 @@ export class MemoryClient {
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "hebbrix-typescript/2.1.0",
+      "User-Agent": "hebbrix-typescript/2.2.1",
     };
 
     if (this.apiKey) {
@@ -88,7 +94,11 @@ export class MemoryClient {
 
   private handleError(response: Response, data: any): never {
     const statusCode = response.status;
-    const message = data?.error?.message || data?.detail || response.statusText;
+    const detail = data?.detail;
+    const message =
+      data?.error?.message ||
+      (typeof detail === "string" ? detail : detail?.message) ||
+      response.statusText;
 
     if (statusCode === 401) {
       throw new AuthenticationError(message);
@@ -113,23 +123,35 @@ export class MemoryClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
 
+    const { headers: requestHeaders, signal: requestSignal, ...requestOptions } =
+      options;
     const response = await fetch(url, {
+      ...requestOptions,
       method,
       headers: {
         ...this.getHeaders(),
-        ...(options.headers || {}),
+        ...(requestHeaders || {}),
       },
-      ...options,
-      signal: AbortSignal.timeout(this.timeout),
+      signal: requestSignal || AbortSignal.timeout(this.timeout),
     });
 
-    let data: any;
+    let data: any = undefined;
     const contentType = response.headers.get("content-type");
 
-    if (contentType?.includes("application/json")) {
-      data = await response.json();
-    } else {
-      data = await response.text();
+    // DELETE/204 responses and a few successful webhook-style operations have
+    // no body. Reading them with response.json() throws despite a successful
+    // HTTP status, so parse exactly once and treat an empty payload as void.
+    const responseText = await response.text();
+    if (responseText) {
+      if (contentType?.includes("application/json")) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          data = { detail: responseText };
+        }
+      } else {
+        data = responseText;
+      }
     }
 
     if (!response.ok) {
@@ -146,7 +168,11 @@ export class MemoryClient {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          searchParams.append(key, String(value));
+          if (Array.isArray(value)) {
+            value.forEach((item) => searchParams.append(key, String(item)));
+          } else {
+            searchParams.append(key, String(value));
+          }
         }
       });
       url += `?${searchParams.toString()}`;

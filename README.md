@@ -50,7 +50,21 @@ const main = async () => {
     collection_id: collection.id,
     content: 'User prefers dark mode and loves TypeScript',
     importance: 0.9,
+    wait_for_index: true,
   });
+
+  // Batch writes have an explicit two-mode contract. With wait_for_index=true,
+  // success means every item is searchable; a server deadline rejects with a
+  // retryable error instead of returning a misleading successful 202.
+  const batch = await client.memories.createBatch({
+    memories: [{ content: 'First fact' }, { content: 'Second fact' }],
+    collection_id: collection.id,
+    wait_for_index: true,
+    idempotency_key: 'import-42',
+  });
+
+  // For fire-and-forget batches, poll every item (with timeout/cancellation):
+  // await client.memories.waitForBatchSearchable(batch, { signal });
 
   // Search memories
   const results = await client.search({
@@ -322,6 +336,8 @@ const updated = await client.procedural.update(procedure.id, {
 
 // Delete procedure
 await client.procedural.delete(procedure.id);
+// DELETE is tenant-scoped and idempotent: deleted, absent, and foreign IDs all
+// return 204 without revealing whether another tenant owns the identifier.
 ```
 
 ### 8. Temporal Knowledge Graphs
