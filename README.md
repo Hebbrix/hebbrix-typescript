@@ -6,7 +6,7 @@ outcome-learning APIs.
 ## Install
 
 ```bash
-npm install hebbrix@2.3.1
+npm install hebbrix@2.4.0
 ```
 
 Node.js 16+ and modern browsers are supported.

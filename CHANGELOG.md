@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0 — 2026-09-07
+
+- Add typed Evidence Loop methods for owner-managed verifiers, durable episodes, actual-execution claims, protected outcome delivery and evidence assessments.
+- Preserve incomplete outcomes, scope, replay and permission receipts. Verifier errors never fall back to caller-reported outcomes.
+- Reject malformed, ambiguous or unknown evidence contracts before exposing unsupported synthesis; retain valid degraded evidence with its abstention signal.
+- Protected ledger methods require the connected Evidence Loop backend, separately scoped verifier credentials and external execution/outcome checks. They do not grant permission or execute actions.
+
 ## 2.3.1 — 2026-08-27
 
 - Make single-memory `wait_for_index` a client-enforced readiness contract:

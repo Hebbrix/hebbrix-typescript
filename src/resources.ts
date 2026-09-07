@@ -30,6 +30,10 @@ import type {
   APIKeyResponse,
   ProofLoopDecisionParams,
   ProofLoopMetricParams,
+  VerifierRegistration,
+  EpisodeCreateParams,
+  ExecutionClaim,
+  VerifiedOutcomeDelivery,
 } from "./types";
 import { enforceSearchSafety } from "./safety";
 import {
@@ -617,7 +621,7 @@ export class SearchResource extends BaseResource {
 }
 
 export class ProofLoopResource extends BaseResource {
-  /** Create a causal decision bound to search/chat evidence automatically. */
+  /** Record a recommendation; this never authorizes execution or proves causality. */
   async decide(params: ProofLoopDecisionParams): Promise<Record<string, any>> {
     const context = params.proof_context;
     const token = typeof context === "string" ? context : context?.token;
@@ -645,6 +649,87 @@ export class ProofLoopResource extends BaseResource {
 
   async getDecision(decisionId: string): Promise<Record<string, any>> {
     return this.client.get(`/v1/learning/decisions/${decisionId}`);
+  }
+
+  /** Owner-session administration. Use a separate client for the verifier key. */
+  async registerVerifier(
+    params: VerifierRegistration,
+  ): Promise<Record<string, any>> {
+    return this.client.post("/v1/learning/verifiers", params);
+  }
+
+  async revokeVerifier(verifierId: string): Promise<Record<string, any>> {
+    return this.client.post(
+      `/v1/learning/verifiers/${encodeURIComponent(verifierId)}/revoke`,
+      {},
+    );
+  }
+
+  async createEpisode(
+    params: EpisodeCreateParams,
+  ): Promise<Record<string, any>> {
+    return this.client.post("/v1/learning/episodes", params);
+  }
+
+  async getEpisode(
+    episodeId: string,
+    offset = 0,
+  ): Promise<Record<string, any>> {
+    return this.client.get(
+      `/v1/learning/episodes/${encodeURIComponent(episodeId)}`,
+      { offset },
+    );
+  }
+
+  async closeEpisode(
+    episodeId: string,
+    status: "completed" | "interrupted",
+  ): Promise<Record<string, any>> {
+    return this.client.post(
+      `/v1/learning/episodes/${encodeURIComponent(episodeId)}/close`,
+      { status },
+    );
+  }
+
+  /** Append an execution claim. This method does not execute a tool. */
+  async recordExecution(
+    decisionId: string,
+    claim: ExecutionClaim,
+  ): Promise<Record<string, any>> {
+    return this.client.post(
+      `/v1/learning/decisions/${encodeURIComponent(decisionId)}/executions`,
+      claim,
+    );
+  }
+
+  async assessment(
+    decisionId: string,
+    evidenceOffset = 0,
+  ): Promise<Record<string, any>> {
+    return this.client.get(
+      `/v1/learning/decisions/${encodeURIComponent(decisionId)}/assessment`,
+      { evidence_offset: evidenceOffset },
+    );
+  }
+
+  async verifierEvidence(
+    verifierId: string,
+    decisionId: string,
+  ): Promise<Record<string, any>> {
+    return this.client.get(
+      `/v1/learning/verifiers/${encodeURIComponent(verifierId)}/decisions/${encodeURIComponent(decisionId)}`,
+    );
+  }
+
+  /** Deliver using the dedicated source credential, after checking execution independently. */
+  async deliverVerifiedOutcomes(
+    verifierId: string,
+    delivery: VerifiedOutcomeDelivery,
+  ): Promise<Record<string, any>> {
+    return this.client.post(
+      `/v1/learning/verifiers/${encodeURIComponent(verifierId)}/events`,
+      delivery,
+    );
   }
 
   async defineMetric(
