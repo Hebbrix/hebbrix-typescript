@@ -26,6 +26,28 @@ test("preserves rows bound to authoritative evidence", () => {
   assert.deepEqual(enforceSearchSafety(supported).results, supported.results);
 });
 
+for (const patch of [
+  {sources: [{content: "unidentified"}]}, {sources: [null]}, {sources: ["not a row"]},
+  {sources: [{memory_id: 7}]}, {sources: [{memory_id: " "}]},
+  {sources: [{memory_id: null, id: "mem-1"}]},
+  {sources: [{memory_id: "mem-1", id: "mem-2"}]},
+  {sources: {}}, {sources: []}, {evidence_ids: [7]}, {evidence_ids: [null]},
+  {evidence_ids: ["mem-1", "mem-1"]}, {safety_contract_version: null},
+  {safety_contract_version: "future-version"}, {no_match: true},
+]) {
+  test(`malformed synthesis fails closed: ${JSON.stringify(patch)}`, () => {
+    const result = enforceSearchSafety({...supported, sources: supported.results,
+      answer: "unsupported answer", citations: ["mem-1"], ...patch}, "sources");
+    assert.deepEqual(result.sources, []);
+    assert.deepEqual(result.evidence_ids, []);
+    assert.deepEqual(result.citations, []);
+    assert.equal(result.answer, null);
+    assert.equal(result.no_match, true);
+    assert.equal(result.abstain_recommended, true);
+    assert.equal(result.query_confidence, 0);
+  });
+}
+
 test("fails closed when safety metadata is absent", () => {
   const result = enforceSearchSafety({ results: supported.results, total: 1 });
   assert.equal(result.no_match, true);

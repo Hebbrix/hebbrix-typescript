@@ -114,11 +114,52 @@ export interface ProofLoopCandidate {
 
 export interface ProofLoopDecisionParams {
   policy_key: string;
+  episode_id?: string;
   candidates: ProofLoopCandidate[];
   proof_context?: ProofContext | string;
   collection_id?: string;
   user_id?: string;
   [key: string]: any;
+}
+
+export interface EvidenceScope {
+  policy_key: string;
+  collection_id?: string;
+  user_id?: string;
+}
+
+export interface VerifierRegistration extends EvidenceScope {
+  api_key_id: string;
+  source_system: string;
+  metric_keys: string[];
+}
+
+export interface EpisodeCreateParams extends EvidenceScope {
+  verifier_id: string;
+  idempotency_key: string;
+}
+
+export interface ExecutionClaim {
+  attempt_id: string;
+  status: "started" | "completed" | "failed" | "interrupted" | "blocked";
+  actual_action_key: string;
+  arguments_digest: string;
+  evidence_digest?: string;
+  occurred_at?: string;
+}
+
+export interface VerifiedOutcomeDelivery {
+  decision_id: string;
+  source_event_id: string;
+  evidence_digest: string;
+  execution_digest: string;
+  observations: Array<{
+    metric_key: string;
+    value: number;
+    confidence?: number;
+    is_final?: boolean;
+    observed_at: string;
+  }>;
 }
 
 export interface ReasoningSource {
