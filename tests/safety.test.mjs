@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -356,7 +357,41 @@ test("ProofLoop policy insights encode repeated action keys", async () => {
   }
 });
 
-test("GA high-level resources expose the public contract surface", () => {
+test("GA high-level resources stay mapped to the exported OpenAPI contract", () => {
+  const openapi = JSON.parse(
+    readFileSync(new URL("../contracts/openapi-routes.json", import.meta.url), "utf8"),
+  );
+  const operations = [
+    ["/v1/memories", "post"],
+    ["/v1/memories", "get"],
+    ["/v1/memory-jobs/{job_id}", "get"],
+    ["/v1/corrections", "post"],
+    ["/v1/corrections/relevant", "get"],
+    ["/v1/corrections/{correction_id}", "delete"],
+    ["/v1/search", "post"],
+    ["/v1/search/reason", "post"],
+    ["/v1/learning/decisions", "post"],
+    ["/v1/learning/experiences/assess", "post"],
+    ["/v1/learning/experiences/context", "post"],
+    ["/v1/learning/decisions/{decision_id}", "get"],
+    ["/v1/learning/decisions/{decision_id}/outcomes", "post"],
+    ["/v1/learning/decisions/{decision_id}/proof", "get"],
+    ["/v1/learning/metrics", "post"],
+    ["/v1/learning/metrics", "get"],
+    ["/v1/learning/policies/{policy_key}/insights", "get"],
+    ["/v1/learning/policies/{policy_key}/evaluate", "post"],
+    ["/v1/learning/proof-key", "get"],
+    ["/v1/procedures", "post"],
+    ["/v1/procedures", "get"],
+    ["/v1/procedures/{procedure_id}", "get"],
+    ["/v1/procedures/{procedure_id}", "patch"],
+    ["/v1/procedures/{procedure_id}", "delete"],
+    ["/v1/procedures/{procedure_id}/execute", "post"],
+  ];
+  for (const [path, method] of operations) {
+    assert.ok(openapi.paths[path]?.[method], `${method.toUpperCase()} ${path}`);
+  }
+
   const client = new MemoryClient({ apiKey: "test", baseUrl: "https://unit.test" });
   const resourceMethods = [
     [client.memories, ["create", "listPage", "get", "update", "delete"]],

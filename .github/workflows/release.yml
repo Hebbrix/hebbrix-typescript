@@ -7,6 +7,12 @@ on:
         description: Exact package version to publish
         required: true
         type: string
+      channel:
+        description: npm distribution tag (prereleases must use next)
+        required: true
+        default: next
+        type: choice
+        options: [next, latest]
 
 concurrency:
   group: publish-typescript-${{ inputs.version }}
@@ -43,7 +49,19 @@ jobs:
       - name: Verify requested version
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
-        run: test "$(node -p 'require("./package.json").version')" = "$REQUESTED_VERSION"
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          node --input-type=commonjs <<'NODE'
+          const p = require('./package.json');
+          const v = process.env.REQUESTED_VERSION;
+          const tag = process.env.RELEASE_CHANNEL;
+          if (!/^\d+\.\d+\.\d+(?:-rc\.\d+)?$/.test(v) || v !== p.version)
+            throw new Error('Exact supported release version required');
+          if (!['next', 'latest'].includes(tag) || (v.includes('-') && tag !== 'next'))
+            throw new Error('Prereleases cannot replace the stable channel');
+          if (p.publishConfig?.tag && p.publishConfig.tag !== tag)
+            throw new Error('Channel differs from reviewed package metadata');
+          NODE
 
       - name: Build and inspect package
         run: |
@@ -52,4 +70,6 @@ jobs:
           npm pack --dry-run
 
       - name: Publish to npm with provenance
-        run: npm publish --access public --provenance
+        env:
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: npm publish --access public --provenance --tag "$RELEASE_CHANNEL"

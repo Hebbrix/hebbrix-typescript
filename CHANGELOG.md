@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0-rc.1 — 2026-09-09 (prerelease, npm `next`)
+
+- Add typed native experience program, job, review, revision, policy activation
+  and one-use execution-permission transports.
+- Preserve separate credentials, opaque evidence, uncertainty and authorization
+  receipts; never convert recommendations into execution permission.
+- Require the matching `b5c6d7e8f959` backend, not yet deployed to public
+  production. Stable 2.4.0 remains the production recommendation.
+
 ## 2.4.0 — 2026-09-07
 
 - Add typed Evidence Loop methods for owner-managed verifiers, durable episodes, actual-execution claims, protected outcome delivery and evidence assessments.

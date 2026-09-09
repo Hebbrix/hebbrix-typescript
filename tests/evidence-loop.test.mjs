@@ -41,6 +41,12 @@ test("protected ledger methods preserve scopes, incomplete outcomes and server p
     actual_action_key: "baseline",
     arguments_digest: "a".repeat(64),
   };
+  const experience = {
+    collection_id: "collection",
+    user_id: "end-user",
+    context: { stateful: true },
+    candidate: { lesson: "untrusted hypothesis" },
+  };
   const delivery = {
     decision_id: "decision",
     source_event_id: "source-event",
@@ -55,6 +61,12 @@ test("protected ledger methods preserve scopes, incomplete outcomes and server p
       },
     ],
   };
+  const context = {
+    memory_collection_id: "lessons", evidence_collection_id: "facts",
+    policy_key: "workflow.choice", user_id: "end-user", agent_id: "agent", run_id: "run",
+    context: { stateful: true }, max_context_bytes: 8000,
+    references: [{ memory_id: "lesson", record_digest: "a".repeat(64) }],
+  };
   for (const result of [
     await api.registerVerifier(registration),
     await api.createEpisode(episode),
@@ -63,6 +75,8 @@ test("protected ledger methods preserve scopes, incomplete outcomes and server p
     await api.verifierEvidence("verifier", "decision"),
     await api.deliverVerifiedOutcomes("verifier", delivery),
     await api.assessment("decision", 100),
+    await api.assessExperience(experience),
+    await api.experienceContext(context),
     await api.closeEpisode("episode", "interrupted"),
     await api.revokeVerifier("verifier"),
   ])
@@ -79,6 +93,8 @@ test("protected ledger methods preserve scopes, incomplete outcomes and server p
       "/v1/learning/decisions/decision/assessment",
       { evidence_offset: 100 },
     ],
+    ["post", "/v1/learning/experiences/assess", experience],
+    ["post", "/v1/learning/experiences/context", context],
     ["post", "/v1/learning/episodes/episode/close", { status: "interrupted" }],
     ["post", "/v1/learning/verifiers/verifier/revoke", {}],
   ]);

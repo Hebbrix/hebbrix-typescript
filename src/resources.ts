@@ -34,6 +34,8 @@ import type {
   EpisodeCreateParams,
   ExecutionClaim,
   VerifiedOutcomeDelivery,
+  ExperienceAssessmentParams,
+  ExperienceContextParams,
 } from "./types";
 import { enforceSearchSafety } from "./safety";
 import {
@@ -710,6 +712,16 @@ export class ProofLoopResource extends BaseResource {
       `/v1/learning/decisions/${encodeURIComponent(decisionId)}/assessment`,
       { evidence_offset: evidenceOffset },
     );
+  }
+
+  /** Revalidate a hypothesis against current source evidence; never permission to act. */
+  async assessExperience(params: ExperienceAssessmentParams): Promise<Record<string, any>> {
+    return this.client.post("/v1/learning/experiences/assess", params);
+  }
+
+  /** Revalidate selected stored hypotheses; never grants execution permission. */
+  async experienceContext(params: ExperienceContextParams): Promise<Record<string, any>> {
+    return this.client.post("/v1/learning/experiences/context", params);
   }
 
   async verifierEvidence(
