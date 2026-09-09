@@ -134,6 +134,39 @@ export interface VerifierRegistration extends EvidenceScope {
   metric_keys: string[];
 }
 
+export interface ExperienceAssessmentParams {
+  collection_id?: string | null;
+  user_id?: string | null;
+  context: Record<string, unknown>;
+  candidate: {
+    schema_version?: "experience-candidate-v1";
+    policy_key: string;
+    action_key: string;
+    lesson: string;
+    applicability: {
+      schema_version?: "experience-applicability-v1";
+      required: Record<string, string | number | boolean>;
+    };
+    sources: Array<{
+      decision_id: string;
+      evidence_revision: number;
+      bundle_digest: string;
+    }>;
+  };
+}
+
+export interface ExperienceContextParams {
+  memory_collection_id: string;
+  evidence_collection_id?: string | null;
+  user_id?: string | null;
+  agent_id?: string | null;
+  run_id?: string | null;
+  policy_key: string;
+  references: Array<{ memory_id: string; record_digest: string }>;
+  context: Record<string, unknown>;
+  max_context_bytes?: number;
+}
+
 export interface EpisodeCreateParams extends EvidenceScope {
   verifier_id: string;
   idempotency_key: string;
@@ -149,6 +182,8 @@ export interface ExecutionClaim {
 }
 
 export interface VerifiedOutcomeDelivery {
+  /** Optional source claims; their canonical digest must match evidence_digest. */
+  evidence_document?: Record<string, unknown>;
   decision_id: string;
   source_event_id: string;
   evidence_digest: string;

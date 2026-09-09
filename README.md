@@ -5,8 +5,14 @@ outcome-learning APIs.
 
 ## Install
 
+This branch is the **2.5.0-rc.1 prerelease**, published under npm `next`.
+Native experience operations require backend schema `b5c6d7e8f959`, which is not
+yet deployed to the public production API. Keep `2.4.0` for the current stable
+deployment. Installing this SDK does not grant execution permission or establish
+that an agent learns better outcomes.
+
 ```bash
-npm install hebbrix@2.4.0
+npm install hebbrix@2.5.0-rc.1
 ```
 
 Node.js 16+ and modern browsers are supported.
