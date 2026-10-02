@@ -36,6 +36,7 @@ import type {
   VerifiedOutcomeDelivery,
   ExperienceAssessmentParams,
   ExperienceContextParams,
+  OutcomePolicyConfiguration,
 } from "./types";
 import { enforceSearchSafety } from "./safety";
 import {
@@ -748,6 +749,63 @@ export class ProofLoopResource extends BaseResource {
     params: ProofLoopMetricParams,
   ): Promise<Record<string, any>> {
     return this.client.post("/v1/learning/metrics", params);
+  }
+
+  /** Immutable enrollment before the first receipt; never reinterprets old rewards. */
+  async registerContextSchema(policyKey: string, params: {
+    collection_id?: string;
+    user_id?: string;
+    context_schema: {
+      schema_version?: "outcome-context-v1";
+      version: string;
+      fields: Record<string, { values: (string | boolean | number)[]; required?: boolean }>;
+      backoff?: string[][];
+      unknown_fields?: "reject" | "ignore";
+    };
+  }): Promise<Record<string, any>> {
+    return this.client.request("PUT", `/v1/learning/policies/${encodeURIComponent(policyKey)}/context-schema`, {
+      body: JSON.stringify(params),
+    });
+  }
+
+  async contextSchema(policyKey: string, params: {
+    collection_id?: string; user_id?: string;
+  } = {}): Promise<Record<string, any>> {
+    return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/context-schema`, params);
+  }
+
+  /** Revision-checked explicit opt-in. Does not grant execution permission. */
+  async configurePolicy(policyKey: string, params: {
+    configuration: OutcomePolicyConfiguration; expected_revision?: number;
+    collection_id?: string; user_id?: string;
+  }): Promise<Record<string, any>> {
+    return this.client.request("PUT", `/v1/learning/policies/${encodeURIComponent(policyKey)}/configuration`, {
+      body: JSON.stringify({ expected_revision: 0, ...params }),
+    });
+  }
+
+  async policyConfiguration(policyKey: string, params: {
+    collection_id?: string; user_id?: string;
+  } = {}): Promise<Record<string, any>> {
+    return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/configuration`, params);
+  }
+
+  async policyAdvice(policyKey: string, params: {
+    context?: Record<string, unknown>; collection_id?: string; user_id?: string;
+  } = {}): Promise<Record<string, any>> {
+    return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/advice`, {
+      ...params, context: JSON.stringify(params.context ?? {}),
+    });
+  }
+
+  /** ASK/REVIEW/ACT advice for the exact configured description; never permission. */
+  async actionAdvice(query: string, params: {
+    policy_key: string; action_key: string; context?: Record<string, unknown>;
+    collection_id?: string; user_id?: string;
+  }): Promise<Record<string, any>> {
+    return this.client.get("/v1/confidence", { query, policy_key: params.policy_key,
+      action_key: params.action_key, context: JSON.stringify(params.context ?? {}),
+      collection_id: params.collection_id, end_user_id: params.user_id });
   }
 
   async listMetrics(

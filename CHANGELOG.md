@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0-rc.2 — 2026-10-01 (prerelease, npm `next`)
+
+- Add typed context enrollment, revision-checked policy configuration,
+  scoped evidence cards and exact action-advice helpers.
+- Preserve collection/end-user scope and JSON context. ACT remains advisory;
+  callers must independently authorize external actions.
+- Policy configuration/advice requires backend `e5f6g7h8i868` or a compatible
+  successor. Existing protected workflow transports are unchanged.
+
 ## 2.5.0-rc.1 — 2026-09-09 (prerelease, npm `next`)
 
 - Add typed native experience program, job, review, revision, policy activation

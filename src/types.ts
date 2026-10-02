@@ -442,3 +442,25 @@ export interface APIKeyResponse {
   prefix: string;
   created_at: string;
 }
+/** Explicit owner assumptions; never verified history or execution permission. */
+export interface OutcomeActionPolicy {
+  target: string;
+  description: string;
+  risk_tier?: "low" | "medium" | "high";
+  exploration_allowed?: boolean;
+  autonomy_allowed?: boolean;
+  minimum_evaluated?: number;
+  minimum_success_lower_bound?: number;
+  prior_mean?: number;
+  prior_strength?: number;
+  prior_source?: string;
+}
+
+export interface OutcomePolicyConfiguration {
+  schema_version?: "outcome-policy-v1";
+  strategy?: "conservative" | "posterior_sampling";
+  half_life_days?: number;
+  window_decisions?: number;
+  partial_pool_strength?: number;
+  actions: Record<string, OutcomeActionPolicy>;
+}

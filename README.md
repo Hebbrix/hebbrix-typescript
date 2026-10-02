@@ -5,19 +5,26 @@ outcome-learning APIs.
 
 ## Install
 
-This branch is the **2.5.0-rc.1 prerelease**, published under npm `next`.
-Native experience operations require backend schema `b5c6d7e8f959`, which is not
-yet deployed to the public production API. Keep `2.4.0` for the current stable
-deployment. Installing this SDK does not grant execution permission or establish
-that an agent learns better outcomes.
+This branch is the **2.5.0-rc.2 prerelease**, released under npm `next`.
+The new policy configuration and advice helpers require backend schema
+`e5f6g7h8i868` or a compatible successor. ASK/REVIEW/ACT is advice; installing
+this SDK never grants an agent execution permission.
 
 ```bash
-npm install hebbrix@2.5.0-rc.1
+npm install hebbrix@2.5.0-rc.2
 ```
 
 Node.js 16+ and modern browsers are supported.
 
 ## Quick start
+
+`client.proofloop` exposes `registerContextSchema`, `contextSchema`,
+`configurePolicy`, `policyConfiguration`, `policyAdvice` and `actionAdvice`.
+Enroll context before recording decisions. Configuration uses `expected_revision`
+for compare-and-swap; do not retry a conflict blindly. Exploration remains an
+explicit low-risk opt-in. `actionAdvice` requires the exact configured description,
+policy/action IDs and context. See the [learning guide](https://www.hebbrix.com/docs/learning)
+for the complete request shapes and separate execution-permission requirements.
 
 ```typescript
 import { MemoryClient } from "hebbrix";
