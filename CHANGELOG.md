@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.5.0-rc.3 — 2026-10-02 (prerelease, npm `next`)
+
+- Add typed one-call policy setup and scoped descriptive learning reports.
+- Add a bounded advisor callback that records the actual chosen action and
+  caller-supplied distribution; no external action is executed or authorized.
+- New helpers require the October 2 outcome-followup backend release or a
+  compatible successor. Check `/v1/release` before using the new endpoints.
+- Learning performance and reliable model compliance with feedback are not
+  established. This release makes no superiority or benchmark claim.
+
 ## 2.5.0-rc.2 — 2026-10-01 (prerelease, npm `next`)
 
 - Add typed context enrollment, revision-checked policy configuration,

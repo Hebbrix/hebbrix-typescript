@@ -774,6 +774,45 @@ export class ProofLoopResource extends BaseResource {
     return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/context-schema`, params);
   }
 
+  /** Atomic new-policy setup. Owner supplies risk classification; no execution permission. */
+  async setupPolicy(policyKey: string, params: {
+    context_schema: Parameters<ProofLoopResource["registerContextSchema"]>[1]["context_schema"];
+    actions: OutcomePolicyConfiguration["actions"];
+    collection_id?: string; user_id?: string;
+  }): Promise<Record<string, any>> {
+    const { actions, ...scope } = params;
+    return this.client.post(`/v1/learning/policies/${encodeURIComponent(policyKey)}/setup`,
+      { ...scope, configuration: { actions } });
+  }
+
+  async learningReport(policyKey: string, params: {
+    days?: number; collection_id?: string; user_id?: string;
+  } = {}): Promise<Record<string, any>> {
+    return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/report`, params);
+  }
+
+  /** Advisor provides actual logging probabilities, not confidence masquerading as propensity. */
+  async decideWithAdvice(params: {
+    policy_key: string; candidates: ProofLoopDecisionParams["candidates"];
+    context: Record<string, unknown>; collection_id?: string; user_id?: string;
+    idempotency_key?: string;
+    advisor: (card: Record<string, any>) => Promise<{
+      chosen_action_key: string; action_probability: number;
+      behavior_probabilities: Record<string, number>;
+    }>;
+  }): Promise<Record<string, any>> {
+    const { advisor, ...decision } = params;
+    const card = await this.policyAdvice(params.policy_key, {
+      context: params.context, collection_id: params.collection_id, user_id: params.user_id,
+    });
+    const selection = await advisor(card);
+    if (!selection || Object.keys(selection).sort().join(",") !==
+        "action_probability,behavior_probabilities,chosen_action_key") {
+      throw new Error("advisor must return choice and actual complete logging distribution");
+    }
+    return this.decide({ ...decision, ...selection, mode: "observe" });
+  }
+
   /** Revision-checked explicit opt-in. Does not grant execution permission. */
   async configurePolicy(policyKey: string, params: {
     configuration: OutcomePolicyConfiguration; expected_revision?: number;

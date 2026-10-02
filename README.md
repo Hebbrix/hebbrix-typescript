@@ -18,6 +18,17 @@ Node.js 16+ and modern browsers are supported.
 
 ## Quick start
 
+October 2 follow-up: `proofloop.setupPolicy` atomically creates a new
+context/schema policy with explicitly declared low-risk exploration. Existing
+policies are not migrated automatically. `learningReport` reads a bounded scoped
+descriptive report, not proven uplift. `decideWithAdvice` reads an evidence card,
+invokes the advisor once and logs its actual choice and probabilities. `decide`
+accepts bounded `prior_action` / `prior_strength` for one server-selected decision,
+not outcome evidence. These helpers and structured paraphrase matching require
+the matching October 2 outcome-followup backend, not merely its database schema;
+inspect `/v1/release` before use. Nothing grants execution permission. Learning
+performance and reliable model compliance with feedback are not established.
+
 `client.proofloop` exposes `registerContextSchema`, `contextSchema`,
 `configurePolicy`, `policyConfiguration`, `policyAdvice` and `actionAdvice`.
 Enroll context before recording decisions. Configuration uses `expected_revision`

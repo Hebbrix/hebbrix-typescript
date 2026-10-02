@@ -1,6 +1,6 @@
 {
   "name": "hebbrix",
-  "version": "2.5.0-rc.2",
+  "version": "2.5.0-rc.3",
   "description": "Typed TypeScript client for Hebbrix memory, retrieval, and outcome-learning APIs",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

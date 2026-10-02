@@ -114,6 +114,10 @@ export interface ProofLoopCandidate {
 
 export interface ProofLoopDecisionParams {
   policy_key: string;
+  mode?: "auto" | "observe" | "recommend" | "explore" | "shadow";
+  /** A bounded proposal for one server-sampled decision, never outcome evidence. */
+  prior_action?: string;
+  prior_strength?: number;
   episode_id?: string;
   candidates: ProofLoopCandidate[];
   proof_context?: ProofContext | string;
@@ -457,10 +461,12 @@ export interface OutcomeActionPolicy {
 }
 
 export interface OutcomePolicyConfiguration {
-  schema_version?: "outcome-policy-v1";
+  schema_version?: "outcome-policy-v1" | "outcome-policy-v2";
   strategy?: "conservative" | "posterior_sampling";
   half_life_days?: number;
   window_decisions?: number;
   partial_pool_strength?: number;
+  pooling_mode?: "fixed" | "adaptive";
+  minimum_exploration?: number;
   actions: Record<string, OutcomeActionPolicy>;
 }
