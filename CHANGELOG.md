@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0-rc.4 — 2026-10-03 (prerelease)
+
+- Snapshot advisor context/candidates and reject scope overrides or mutable identities.
+- Validate the complete finite logging distribution against original candidates before writing.
+- Invoke the callback once; preserve caller probabilities without normalization or retries.
+- Caller probabilities are not authenticated randomization; no execution authority or measured learning-performance gain is claimed.
+
 ## 2.5.0-rc.3 — 2026-10-02 (prerelease, npm `next`)
 
 - Add typed one-call policy setup and scoped descriptive learning reports.

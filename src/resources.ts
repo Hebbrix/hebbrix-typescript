@@ -39,6 +39,7 @@ import type {
   OutcomePolicyConfiguration,
 } from "./types";
 import { enforceSearchSafety } from "./safety";
+import { snapshotAdvisorInputs, validatedAdvisorSelection } from "./advice";
 import {
   IndexingAbortedError,
   IndexingTerminalError,
@@ -791,7 +792,9 @@ export class ProofLoopResource extends BaseResource {
     return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/report`, params);
   }
 
-  /** Advisor provides actual logging probabilities, not confidence masquerading as propensity. */
+  /** Snapshots inputs, invokes advisor once, validates its full distribution, then logs observe.
+   * Caller probabilities are not authenticated randomization. No execution, outcomes or retries.
+   */
   async decideWithAdvice(params: {
     policy_key: string; candidates: ProofLoopDecisionParams["candidates"];
     context: Record<string, unknown>; collection_id?: string; user_id?: string;
@@ -801,16 +804,20 @@ export class ProofLoopResource extends BaseResource {
       behavior_probabilities: Record<string, number>;
     }>;
   }): Promise<Record<string, any>> {
-    const { advisor, ...decision } = params;
-    const card = await this.policyAdvice(params.policy_key, {
-      context: params.context, collection_id: params.collection_id, user_id: params.user_id,
-    });
-    const selection = await advisor(card);
-    if (!selection || Object.keys(selection).sort().join(",") !==
-        "action_probability,behavior_probabilities,chosen_action_key") {
-      throw new Error("advisor must return choice and actual complete logging distribution");
+    if (Object.keys(params).some(key => !["policy_key", "candidates", "context", "collection_id", "user_id", "idempotency_key", "advisor"].includes(key))) throw new Error("unsupported decideWithAdvice field");
+    const { advisor, policy_key, collection_id, user_id, idempotency_key } = params;
+    if (typeof advisor !== "function") throw new Error("advisor must be callable");
+    if (typeof policy_key !== "string" || policy_key.trim() !== policy_key || policy_key.length > 100 || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(policy_key)) throw new Error("policy_key must be an exact valid policy identity");
+    for (const [field, value, limit] of [["collection_id", collection_id, Infinity], ["user_id", user_id, 255], ["idempotency_key", idempotency_key, 160]] as const) {
+      if (value != null && (typeof value !== "string" || value.length > limit)) throw new Error(`${field} must be an immutable string within the API limit`);
     }
-    return this.decide({ ...decision, ...selection, mode: "observe" });
+    const snapshot = snapshotAdvisorInputs(params.candidates, params.context);
+    const card = await this.policyAdvice(policy_key, {
+      context: snapshot.context, collection_id, user_id,
+    });
+    const selection = validatedAdvisorSelection(await advisor(card), snapshot.keys);
+    return this.decide({ policy_key, collection_id, user_id, idempotency_key,
+      candidates: snapshot.candidates, context: snapshot.context, ...selection, mode: "observe" });
   }
 
   /** Revision-checked explicit opt-in. Does not grant execution permission. */
