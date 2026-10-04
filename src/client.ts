@@ -17,6 +17,7 @@ import {
   MemoryToolsResource,
   ProofLoopResource,
 } from "./resources";
+import { ExperienceWorkflowResource } from "./experience-workflow";
 import {
   ClientConfig,
   SearchParams,
@@ -52,6 +53,7 @@ export class MemoryClient {
   public consolidation: ConsolidationResource;
   public memoryTools: MemoryToolsResource;
   public proofloop: ProofLoopResource;
+  public experiences: ExperienceWorkflowResource;
 
   constructor(config: ClientConfig = {}) {
     this.apiKey = config.apiKey;
@@ -75,12 +77,13 @@ export class MemoryClient {
     this.consolidation = new ConsolidationResource(this);
     this.memoryTools = new MemoryToolsResource(this);
     this.proofloop = new ProofLoopResource(this);
+    this.experiences = new ExperienceWorkflowResource(this);
   }
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "hebbrix-typescript/2.4.0",
+      "User-Agent": "hebbrix-typescript/2.5.0",
     };
 
     if (this.apiKey) {

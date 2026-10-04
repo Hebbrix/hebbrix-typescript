@@ -41,11 +41,12 @@
  *
  * @packageDocumentation
  * @module hebbrix
- * @version 2.4.0
+ * @version 2.5.0
  */
 
 export { MemoryClient } from "./client";
 export * from "./types";
 export * from "./errors";
 export * from "./resources";
+export * from "./experience-workflow";
 export * from "./safety";

@@ -5,13 +5,44 @@ outcome-learning APIs.
 
 ## Install
 
+This branch is the **2.5.0 stable SDK**, released under npm `latest`.
+The new policy configuration and advice helpers require backend schema
+`e5f6g7h8i868` or a compatible successor. ASK/REVIEW/ACT is advice; installing
+this SDK never grants an agent execution permission.
+
 ```bash
-npm install hebbrix@2.4.0
+npm install hebbrix@2.5.0
 ```
 
 Node.js 16+ and modern browsers are supported.
 
+Stable packaging does not qualify experimental learning performance. For the
+matching Round 5 backend, `setupPolicy` accepts explicit `configuration` options
+for versioned change response and declared optional-field sharing, plus
+`value_objective: {success_value:10,max_cost:20,cost_unit:"USD"}`. Report actual
+success and cost together. Chat follow-up capture requires learning consent and
+an exact prior decision binding; it remains provisional, not execution evidence.
+
 ## Quick start
+
+October 2 follow-up: `proofloop.setupPolicy` atomically creates a new
+context/schema policy with explicitly declared low-risk exploration. Existing
+policies are not migrated automatically. `learningReport` reads a bounded scoped
+descriptive report, not proven uplift. `decideWithAdvice` reads an evidence card,
+invokes the advisor once and logs its actual choice and probabilities. `decide`
+accepts bounded `prior_action` / `prior_strength` for one server-selected decision,
+not outcome evidence. These helpers and structured paraphrase matching require
+the matching October 2 outcome-followup backend, not merely its database schema;
+inspect `/v1/release` before use. Nothing grants execution permission. Learning
+performance and reliable model compliance with feedback are not established.
+
+`client.proofloop` exposes `registerContextSchema`, `contextSchema`,
+`configurePolicy`, `policyConfiguration`, `policyAdvice` and `actionAdvice`.
+Enroll context before recording decisions. Configuration uses `expected_revision`
+for compare-and-swap; do not retry a conflict blindly. Exploration remains an
+explicit low-risk opt-in. `actionAdvice` requires the exact configured description,
+policy/action IDs and context. See the [learning guide](https://www.hebbrix.com/docs/learning)
+for the complete request shapes and separate execution-permission requirements.
 
 ```typescript
 import { MemoryClient } from "hebbrix";

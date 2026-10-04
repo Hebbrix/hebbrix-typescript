@@ -114,6 +114,10 @@ export interface ProofLoopCandidate {
 
 export interface ProofLoopDecisionParams {
   policy_key: string;
+  mode?: "auto" | "observe" | "recommend" | "explore" | "shadow";
+  /** A bounded proposal for one server-sampled decision, never outcome evidence. */
+  prior_action?: string;
+  prior_strength?: number;
   episode_id?: string;
   candidates: ProofLoopCandidate[];
   proof_context?: ProofContext | string;
@@ -134,6 +138,39 @@ export interface VerifierRegistration extends EvidenceScope {
   metric_keys: string[];
 }
 
+export interface ExperienceAssessmentParams {
+  collection_id?: string | null;
+  user_id?: string | null;
+  context: Record<string, unknown>;
+  candidate: {
+    schema_version?: "experience-candidate-v1";
+    policy_key: string;
+    action_key: string;
+    lesson: string;
+    applicability: {
+      schema_version?: "experience-applicability-v1";
+      required: Record<string, string | number | boolean>;
+    };
+    sources: Array<{
+      decision_id: string;
+      evidence_revision: number;
+      bundle_digest: string;
+    }>;
+  };
+}
+
+export interface ExperienceContextParams {
+  memory_collection_id: string;
+  evidence_collection_id?: string | null;
+  user_id?: string | null;
+  agent_id?: string | null;
+  run_id?: string | null;
+  policy_key: string;
+  references: Array<{ memory_id: string; record_digest: string }>;
+  context: Record<string, unknown>;
+  max_context_bytes?: number;
+}
+
 export interface EpisodeCreateParams extends EvidenceScope {
   verifier_id: string;
   idempotency_key: string;
@@ -149,6 +186,8 @@ export interface ExecutionClaim {
 }
 
 export interface VerifiedOutcomeDelivery {
+  /** Optional source claims; their canonical digest must match evidence_digest. */
+  evidence_document?: Record<string, unknown>;
   decision_id: string;
   source_event_id: string;
   evidence_digest: string;
@@ -406,4 +445,31 @@ export interface APIKeyResponse {
   key: string;
   prefix: string;
   created_at: string;
+}
+/** Explicit owner assumptions; never verified history or execution permission. */
+export interface OutcomeActionPolicy {
+  target: string;
+  description: string;
+  risk_tier?: "low" | "medium" | "high";
+  exploration_allowed?: boolean;
+  autonomy_allowed?: boolean;
+  minimum_evaluated?: number;
+  minimum_success_lower_bound?: number;
+  prior_mean?: number;
+  prior_strength?: number;
+  prior_source?: string;
+}
+
+export interface OutcomePolicyConfiguration {
+  schema_version?: "outcome-policy-v1" | "outcome-policy-v2" | "outcome-policy-v3";
+  strategy?: "conservative" | "posterior_sampling";
+  half_life_days?: number;
+  window_decisions?: number;
+  partial_pool_strength?: number;
+  pooling_mode?: "fixed" | "adaptive";
+  minimum_exploration?: number;
+  selection_half_life_decisions?: number | null;
+  change_response?: boolean;
+  contextual_model?: "exact" | "linear_optional";
+  actions: Record<string, OutcomeActionPolicy>;
 }
