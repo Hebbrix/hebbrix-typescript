@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ProofLoopResource } from "../dist/index.mjs";
+test("feature and value setup forwards one atomic request",async()=>{
+  const calls=[];
+  const api=new ProofLoopResource({post:async(...args)=>{calls.push(args);return {};}});
+  const actions={a:{description:"Read logs",target:"sandbox",risk_tier:"low"}};
+  const configuration={schema_version:"outcome-policy-v3",contextual_model:"linear_optional"};
+  const value_objective={success_value:10,max_cost:20,cost_unit:"USD"};
+  await api.setupPolicy("p",{context_schema:{version:"v1",fields:{}},actions,configuration,value_objective});
+  assert.equal(calls.length,1);
+  assert.deepEqual(calls[0][1].configuration,{...configuration,actions});
+  assert.deepEqual(calls[0][1].value_objective,value_objective);
+});
 test("atomic setup and scoped report use one request each",async()=>{
   const calls=[];
   const api=new ProofLoopResource({post:async(...args)=>{calls.push(args);return {revision:1};},get:async(...args)=>{calls.push(args);return {};}});

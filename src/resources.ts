@@ -779,11 +779,13 @@ export class ProofLoopResource extends BaseResource {
   async setupPolicy(policyKey: string, params: {
     context_schema: Parameters<ProofLoopResource["registerContextSchema"]>[1]["context_schema"];
     actions: OutcomePolicyConfiguration["actions"];
+    configuration?: Omit<OutcomePolicyConfiguration, "actions">;
+    value_objective?: { success_value: number; max_cost: number; cost_unit: string };
     collection_id?: string; user_id?: string;
   }): Promise<Record<string, any>> {
-    const { actions, ...scope } = params;
+    const { actions, configuration, ...scope } = params;
     return this.client.post(`/v1/learning/policies/${encodeURIComponent(policyKey)}/setup`,
-      { ...scope, configuration: { actions } });
+      { ...scope, configuration: { ...configuration, actions } });
   }
 
   async learningReport(policyKey: string, params: {

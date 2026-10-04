@@ -5,16 +5,23 @@ outcome-learning APIs.
 
 ## Install
 
-This branch is the **2.5.0-rc.2 prerelease**, released under npm `next`.
+This branch is the **2.5.0 stable SDK**, released under npm `latest`.
 The new policy configuration and advice helpers require backend schema
 `e5f6g7h8i868` or a compatible successor. ASK/REVIEW/ACT is advice; installing
 this SDK never grants an agent execution permission.
 
 ```bash
-npm install hebbrix@2.5.0-rc.2
+npm install hebbrix@2.5.0
 ```
 
 Node.js 16+ and modern browsers are supported.
+
+Stable packaging does not qualify experimental learning performance. For the
+matching Round 5 backend, `setupPolicy` accepts explicit `configuration` options
+for versioned change response and declared optional-field sharing, plus
+`value_objective: {success_value:10,max_cost:20,cost_unit:"USD"}`. Report actual
+success and cost together. Chat follow-up capture requires learning consent and
+an exact prior decision binding; it remains provisional, not execution evidence.
 
 ## Quick start
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0 — 2026-10-04 (stable SDK, npm `latest`)
+
+- Add typed v3 change-response and declared optional-feature configuration.
+- Add atomic setup options for explicit configuration and success-minus-cost metrics.
+- Preserve advisor input/probability validation and owner/context boundaries.
+- Backend v3 methods remain explicit experimental opt-ins; stable packaging does not establish learning quality or execution permission.
+
 ## 2.5.0-rc.4 — 2026-10-03 (prerelease)
 
 - Snapshot advisor context/candidates and reject scope overrides or mutable identities.

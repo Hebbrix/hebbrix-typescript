@@ -461,12 +461,15 @@ export interface OutcomeActionPolicy {
 }
 
 export interface OutcomePolicyConfiguration {
-  schema_version?: "outcome-policy-v1" | "outcome-policy-v2";
+  schema_version?: "outcome-policy-v1" | "outcome-policy-v2" | "outcome-policy-v3";
   strategy?: "conservative" | "posterior_sampling";
   half_life_days?: number;
   window_decisions?: number;
   partial_pool_strength?: number;
   pooling_mode?: "fixed" | "adaptive";
   minimum_exploration?: number;
+  selection_half_life_decisions?: number | null;
+  change_response?: boolean;
+  contextual_model?: "exact" | "linear_optional";
   actions: Record<string, OutcomeActionPolicy>;
 }
