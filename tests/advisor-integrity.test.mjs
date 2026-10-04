@@ -70,6 +70,20 @@ test("returned probabilities do not remain aliased to callback result", async ()
   selected.behavior_probabilities.b = 0;
   assert.deepEqual(calls.post[0][1].behavior_probabilities, { a: 0, b: 1 });
 });
+test("pilot horizon reaches advice, not the logged decision", async () => {
+  const { api, calls } = transport();
+  await api.decideWithAdvice({ ...inputs(), remaining_decisions: 80, max_pilot_decisions: 2, advisor: async () => choice() });
+  assert.equal(calls.get[0][1].remaining_decisions, 80);
+  assert.equal(calls.get[0][1].max_pilot_decisions, 2);
+  assert.equal("remaining_decisions" in calls.post[0][1], false);
+  assert.equal("max_pilot_decisions" in calls.post[0][1], false);
+});
+for (const horizon of [true, 0, 10001, 1.5]) test(`invalid pilot horizon ${horizon} fails before advice`, async () => {
+  const { api, calls } = transport();
+  await assert.rejects(api.decideWithAdvice({ ...inputs(), remaining_decisions: horizon, advisor: async () => choice() }));
+  assert.equal(calls.get.length, 0);
+  assert.equal(calls.post.length, 0);
+});
 const invalidChoices = [
   null,
   [],

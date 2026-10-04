@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.1 — 2026-10-04 (advisory horizon helpers)
+
+- Carry optional remaining_decisions and max_pilot_decisions through evidence reads and the once-only advisor callback.
+- Keep actual caller distribution validation, owner scope and observe-mode logging unchanged.
+- New backend v3 controls remain explicit experimental opt-ins; these helpers do not execute actions or establish performance, calibration or superiority.
+
 ## 2.5.0 — 2026-10-04 (stable SDK, npm `latest`)
 
 - Add typed v3 change-response and declared optional-feature configuration.

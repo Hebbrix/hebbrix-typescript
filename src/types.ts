@@ -470,6 +470,7 @@ export interface OutcomePolicyConfiguration {
   minimum_exploration?: number;
   selection_half_life_decisions?: number | null;
   change_response?: boolean;
-  contextual_model?: "exact" | "linear_optional";
+  contextual_model?: "exact" | "linear_optional" | "adaptive_optional";
+  proposal_mode?: "legacy_prior" | "policy_mixture";
   actions: Record<string, OutcomeActionPolicy>;
 }

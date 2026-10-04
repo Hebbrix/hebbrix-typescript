@@ -13,12 +13,14 @@ test("risk opt-in and advice preserve scopes, JSON context, and revisions", asyn
     body: JSON.stringify({ expected_revision: 2, configuration: { actions: {} } }),
   }]);
   await api.policyConfiguration("policy:key", { user_id: "alice" });
-  await api.policyAdvice("policy:key", { context: { issue: "slow" } });
+  await api.policyAdvice("policy:key", { context: { issue: "slow" }, remaining_decisions: 100, max_pilot_decisions: 2 });
   const result = await api.actionAdvice("Restart sandbox", {
     policy_key: "policy:key", action_key: "restart", user_id: "alice",
   });
   assert.equal(calls[1][1].user_id, "alice");
   assert.deepEqual(JSON.parse(calls[2][1].context), { issue: "slow" });
+  assert.equal(calls[2][1].remaining_decisions, 100);
+  assert.equal(calls[2][1].max_pilot_decisions, 2);
   assert.equal(calls[3][0], "/v1/confidence");
   assert.equal(calls[3][1].end_user_id, "alice");
   assert.equal(result.authorization_granted, false);

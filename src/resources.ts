@@ -801,21 +801,25 @@ export class ProofLoopResource extends BaseResource {
     policy_key: string; candidates: ProofLoopDecisionParams["candidates"];
     context: Record<string, unknown>; collection_id?: string; user_id?: string;
     idempotency_key?: string;
+    remaining_decisions?: number; max_pilot_decisions?: number;
     advisor: (card: Record<string, any>) => Promise<{
       chosen_action_key: string; action_probability: number;
       behavior_probabilities: Record<string, number>;
     }>;
   }): Promise<Record<string, any>> {
-    if (Object.keys(params).some(key => !["policy_key", "candidates", "context", "collection_id", "user_id", "idempotency_key", "advisor"].includes(key))) throw new Error("unsupported decideWithAdvice field");
-    const { advisor, policy_key, collection_id, user_id, idempotency_key } = params;
+    if (Object.keys(params).some(key => !["policy_key", "candidates", "context", "collection_id", "user_id", "idempotency_key", "advisor", "remaining_decisions", "max_pilot_decisions"].includes(key))) throw new Error("unsupported decideWithAdvice field");
+    const { advisor, policy_key, collection_id, user_id, idempotency_key, remaining_decisions, max_pilot_decisions } = params;
     if (typeof advisor !== "function") throw new Error("advisor must be callable");
     if (typeof policy_key !== "string" || policy_key.trim() !== policy_key || policy_key.length > 100 || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(policy_key)) throw new Error("policy_key must be an exact valid policy identity");
     for (const [field, value, limit] of [["collection_id", collection_id, Infinity], ["user_id", user_id, 255], ["idempotency_key", idempotency_key, 160]] as const) {
       if (value != null && (typeof value !== "string" || value.length > limit)) throw new Error(`${field} must be an immutable string within the API limit`);
     }
+    for (const [field, value, limit] of [["remaining_decisions", remaining_decisions, 10000], ["max_pilot_decisions", max_pilot_decisions, 8]] as const) {
+      if (value != null && (!Number.isInteger(value) || value < 1 || value > limit)) throw new Error(`${field} must be an integer within the API limit`);
+    }
     const snapshot = snapshotAdvisorInputs(params.candidates, params.context);
     const card = await this.policyAdvice(policy_key, {
-      context: snapshot.context, collection_id, user_id,
+      context: snapshot.context, collection_id, user_id, remaining_decisions, max_pilot_decisions,
     });
     const selection = validatedAdvisorSelection(await advisor(card), snapshot.keys);
     return this.decide({ policy_key, collection_id, user_id, idempotency_key,
@@ -840,6 +844,7 @@ export class ProofLoopResource extends BaseResource {
 
   async policyAdvice(policyKey: string, params: {
     context?: Record<string, unknown>; collection_id?: string; user_id?: string;
+    remaining_decisions?: number; max_pilot_decisions?: number;
   } = {}): Promise<Record<string, any>> {
     return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/advice`, {
       ...params, context: JSON.stringify(params.context ?? {}),
