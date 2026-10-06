@@ -5,44 +5,18 @@ outcome-learning APIs.
 
 ## Install
 
-This branch is the **2.5.0 stable SDK**, released under npm `latest`.
-The new policy configuration and advice helpers require backend schema
-`e5f6g7h8i868` or a compatible successor. ASK/REVIEW/ACT is advice; installing
-this SDK never grants an agent execution permission.
+The current stable package is **2.5.2**. Start with memory storage and search, or
+the three-call outcome-learning workflow below. Advanced evidence transports
+are opt-in. Installing the SDK does not grant execution permission or establish
+a learning-performance advantage.
 
 ```bash
-npm install hebbrix@2.5.0
+npm install hebbrix@2.5.2
 ```
 
 Node.js 16+ and modern browsers are supported.
 
-Stable packaging does not qualify experimental learning performance. For the
-matching Round 5 backend, `setupPolicy` accepts explicit `configuration` options
-for versioned change response and declared optional-field sharing, plus
-`value_objective: {success_value:10,max_cost:20,cost_unit:"USD"}`. Report actual
-success and cost together. Chat follow-up capture requires learning consent and
-an exact prior decision binding; it remains provisional, not execution evidence.
-
 ## Quick start
-
-October 2 follow-up: `proofloop.setupPolicy` atomically creates a new
-context/schema policy with explicitly declared low-risk exploration. Existing
-policies are not migrated automatically. `learningReport` reads a bounded scoped
-descriptive report, not proven uplift. `decideWithAdvice` reads an evidence card,
-invokes the advisor once and logs its actual choice and probabilities. `decide`
-accepts bounded `prior_action` / `prior_strength` for one server-selected decision,
-not outcome evidence. These helpers and structured paraphrase matching require
-the matching October 2 outcome-followup backend, not merely its database schema;
-inspect `/v1/release` before use. Nothing grants execution permission. Learning
-performance and reliable model compliance with feedback are not established.
-
-`client.proofloop` exposes `registerContextSchema`, `contextSchema`,
-`configurePolicy`, `policyConfiguration`, `policyAdvice` and `actionAdvice`.
-Enroll context before recording decisions. Configuration uses `expected_revision`
-for compare-and-swap; do not retry a conflict blindly. Exploration remains an
-explicit low-risk opt-in. `actionAdvice` requires the exact configured description,
-policy/action IDs and context. See the [learning guide](https://www.hebbrix.com/docs/learning)
-for the complete request shapes and separate execution-permission requirements.
 
 ```typescript
 import { MemoryClient } from "hebbrix";
@@ -61,6 +35,54 @@ const results = await client.search({
 });
 console.log(memory, results);
 ```
+
+## Learn from outcomes in three calls
+
+Use server-side selection when Hebbrix should choose. Read-only advice is for a
+caller that intentionally chooses outside Hebbrix; an LLM can ignore that advice.
+
+```typescript
+await client.proofloop.setupPolicy("support.reply.v1", {
+  user_id: "customer-42",
+  context_schema: { version: "v1", fields: {
+    issue: { values: ["delivery", "billing"], required: true },
+  } },
+  actions: {
+    explain: { description: "Explain the delivery status", target: "ticket",
+      risk_tier: "low", exploration_allowed: true },
+    review: { description: "Request a support review", target: "ticket",
+      risk_tier: "low", exploration_allowed: true },
+  },
+  configuration: { strategy: "posterior_sampling" },
+});
+const decision = await client.proofloop.decide({
+  policy_key: "support.reply.v1", user_id: "customer-42", mode: "auto",
+  context: { issue: "delivery" },
+  candidates: [{ action_key: "explain" }, { action_key: "review" }],
+  idempotency_key: "ticket-42-decision",
+});
+// Your application checks permission and performs the action separately.
+await client.proofloop.recordOutcome(decision.decision_id, {
+  success, idempotency_key: "ticket-42-result",
+});
+```
+
+`success` must be the actual result from your application or an independently
+authorized verifier, not a prediction or the recommendation itself. Keep action
+identities and required context stable. Use a new policy/version when their
+meaning changes. See the
+[recommended defaults](https://hebbrix.com/docs/learning).
+
+## Advice and integration boundaries
+
+`proofloop.actionAdvice(...)` reads an exact configured action and context. The
+canonical `gate` is `ASK`, `REVIEW`, `ACT`, or `BLOCK`. `BLOCK` dominates; `ACT` is
+advice, not permission. Your current authorization and human-approval policy
+must independently allow the action before any execution. Scores are not permits.
+
+Version 2.5.2 adds compact advice, batch, and explicit confirmation helpers.
+These need matching Round9 server routes. Complete receipts remain on the server;
+compact views retain scope and safety caveats.
 
 ## Durable readiness
 
@@ -143,7 +165,7 @@ The production API publishes exact build and artifact compatibility at
 [`GET /v1/release`](https://api.hebbrix.com/v1/release). The public OpenAPI is
 [`/openapi.json`](https://api.hebbrix.com/openapi.json).
 
-- [Documentation](https://docs.hebbrix.com)
+- [Documentation](https://hebbrix.com/docs)
 - [API reference](https://api.hebbrix.com/docs)
 - [npm package](https://www.npmjs.com/package/hebbrix)
 - [Support](https://www.hebbrix.com/contact)
@@ -151,3 +173,13 @@ The production API publishes exact build and artifact compatibility at
 ## License
 
 MIT. See `LICENSE` in the distribution.
+
+## Stability
+
+Stable SDK versions follow semantic versioning. Patch updates correct defects;
+new optional fields and methods are additive. Required context, action identity,
+owner scope, and historical outcomes are not silently rewritten. Experimental
+APIs are marked separately. Security and correctness guards may tighten
+immediately; migrations and incompatible changes must document the supported
+replacement. Read [CHANGELOG.md](CHANGELOG.md), pin production dependencies, and
+do not treat release cadence as a performance or compliance guarantee.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.2 — 2026-10-06 (compact advice, batches and confirmation)
+
+- Correct the canonical docs URL and simplify stable onboarding into three calls.
+- Add optional compact search/advice, unrounded reranker signal typing, bounded per-item decision/outcome batches and explicit capture-confirmation transports.
+- Type new opt-in selection controls without changing existing policy defaults.
+- Preserve complete server receipts, exact scope, caller probabilities and ACT-as-advice boundaries. Matching server/package publication is required; no performance or execution-authority claim.
+
 ## 2.5.1 — 2026-10-04 (advisory horizon helpers)
 
 - Carry optional remaining_decisions and max_pilot_decisions through evidence reads and the once-only advisor callback.

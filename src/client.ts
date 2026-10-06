@@ -83,7 +83,7 @@ export class MemoryClient {
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "User-Agent": "hebbrix-typescript/2.5.1",
+      "User-Agent": "hebbrix-typescript/2.5.2",
     };
 
     if (this.apiKey) {

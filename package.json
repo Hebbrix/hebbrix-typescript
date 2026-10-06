@@ -1,6 +1,6 @@
 {
   "name": "hebbrix",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "Typed TypeScript client for Hebbrix memory, retrieval, and outcome-learning APIs",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -53,7 +53,7 @@
   "bugs": {
     "url": "https://github.com/Hebbrix/hebbrix-typescript/issues"
   },
-  "homepage": "https://docs.hebbrix.com",
+  "homepage": "https://hebbrix.com/docs",
   "publishConfig": {
     "access": "public",
     "tag": "latest"

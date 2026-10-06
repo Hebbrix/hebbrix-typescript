@@ -37,9 +37,10 @@ import type {
   ExperienceAssessmentParams,
   ExperienceContextParams,
   OutcomePolicyConfiguration,
+  ActionAdviceReceipt,
 } from "./types";
 import { enforceSearchSafety } from "./safety";
-import { snapshotAdvisorInputs, validatedAdvisorSelection } from "./advice";
+import { snapshotAdvisorInputs, validatedAdvisorSelection, snapshotBatchItems } from "./advice";
 import {
   IndexingAbortedError,
   IndexingTerminalError,
@@ -573,6 +574,8 @@ export class SearchResource extends BaseResource {
 
   /** Search while preserving the automatic ProofLoop evidence context. */
   async searchWithProof(params: SearchParams): Promise<SearchResponse> {
+    if (params.view !== undefined && !["full", "compact"].includes(params.view))
+      throw new Error("view must be full or compact");
     const response = await this.client.post<SearchResponse>("/v1/search", {
       query: params.query,
       collection_id: params.collection_id,
@@ -587,6 +590,7 @@ export class SearchResource extends BaseResource {
       include_low_confidence: params.include_low_confidence ?? false,
       group_by_source: params.group_by_source ?? true,
       debug: params.debug ?? false,
+      ...(params.view === undefined ? {} : { view: params.view }),
     });
     return enforceSearchSafety(response);
   }
@@ -649,6 +653,43 @@ export class ProofLoopResource extends BaseResource {
       observations: [],
       ...body,
     });
+  }
+
+  /** Independently committed items, not an atomic transaction or execution permit. */
+  async decideBatch(items: Array<ProofLoopDecisionParams & { idempotency_key: string }>,
+                    view: "full" | "compact" = "compact"): Promise<Record<string, any>> {
+    if (!["full", "compact"].includes(view)) throw new Error("view must be full or compact");
+    return this.client.post("/v1/learning/decisions/batch", {
+      items: snapshotBatchItems(items), view,
+    });
+  }
+
+  /** Inspect every accepted/rejected result; a failure does not undo prior accepted items. */
+  async recordOutcomesBatch(items: Array<{
+    decision_id: string; idempotency_key: string; outcome: Record<string, unknown>;
+  }>, view: "full" | "compact" = "compact"): Promise<Record<string, any>> {
+    if (!["full", "compact"].includes(view)) throw new Error("view must be full or compact");
+    return this.client.post("/v1/learning/outcomes/batch", {
+      items: snapshotBatchItems(items, true), view,
+    });
+  }
+
+  /** Affirm one provisional capture in its original scope; not independent verification.
+   * Never infers polarity, automatically promotes evidence, or admits protected episodes.
+   */
+  async confirmCapture(decisionId: string, params: {
+    observation_id: string; idempotency_key: string; success: boolean; confirmed: true;
+    collection_id?: string; user_id?: string; source_system?: string;
+    source_event_id?: string; evidence_digest?: string;
+  }): Promise<Record<string, any>> {
+    if (typeof params.success !== "boolean" || params.confirmed !== true)
+      throw new Error("explicit Boolean success and confirmed=true are required");
+    for (const field of ["observation_id", "idempotency_key"] as const) {
+      if (typeof params[field] !== "string" || !params[field].trim() || params[field].length > 160)
+        throw new Error(`${field} must be a nonempty bounded string`);
+    }
+    return this.client.post(
+      `/v1/learning/decisions/${encodeURIComponent(decisionId)}/confirm-capture`, params);
   }
 
   async getDecision(decisionId: string): Promise<Record<string, any>> {
@@ -802,12 +843,13 @@ export class ProofLoopResource extends BaseResource {
     context: Record<string, unknown>; collection_id?: string; user_id?: string;
     idempotency_key?: string;
     remaining_decisions?: number; max_pilot_decisions?: number;
+    view?: "full" | "compact";
     advisor: (card: Record<string, any>) => Promise<{
       chosen_action_key: string; action_probability: number;
       behavior_probabilities: Record<string, number>;
     }>;
   }): Promise<Record<string, any>> {
-    if (Object.keys(params).some(key => !["policy_key", "candidates", "context", "collection_id", "user_id", "idempotency_key", "advisor", "remaining_decisions", "max_pilot_decisions"].includes(key))) throw new Error("unsupported decideWithAdvice field");
+    if (Object.keys(params).some(key => !["policy_key", "candidates", "context", "collection_id", "user_id", "idempotency_key", "advisor", "remaining_decisions", "max_pilot_decisions", "view"].includes(key))) throw new Error("unsupported decideWithAdvice field");
     const { advisor, policy_key, collection_id, user_id, idempotency_key, remaining_decisions, max_pilot_decisions } = params;
     if (typeof advisor !== "function") throw new Error("advisor must be callable");
     if (typeof policy_key !== "string" || policy_key.trim() !== policy_key || policy_key.length > 100 || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(policy_key)) throw new Error("policy_key must be an exact valid policy identity");
@@ -820,6 +862,7 @@ export class ProofLoopResource extends BaseResource {
     const snapshot = snapshotAdvisorInputs(params.candidates, params.context);
     const card = await this.policyAdvice(policy_key, {
       context: snapshot.context, collection_id, user_id, remaining_decisions, max_pilot_decisions,
+      ...(params.view === undefined ? {} : { view: params.view }),
     });
     const selection = validatedAdvisorSelection(await advisor(card), snapshot.keys);
     return this.decide({ policy_key, collection_id, user_id, idempotency_key,
@@ -845,7 +888,10 @@ export class ProofLoopResource extends BaseResource {
   async policyAdvice(policyKey: string, params: {
     context?: Record<string, unknown>; collection_id?: string; user_id?: string;
     remaining_decisions?: number; max_pilot_decisions?: number;
+    view?: "full" | "compact";
   } = {}): Promise<Record<string, any>> {
+    if (params.view !== undefined && !["full", "compact"].includes(params.view))
+      throw new Error("view must be full or compact");
     return this.client.get(`/v1/learning/policies/${encodeURIComponent(policyKey)}/advice`, {
       ...params, context: JSON.stringify(params.context ?? {}),
     });
@@ -855,8 +901,8 @@ export class ProofLoopResource extends BaseResource {
   async actionAdvice(query: string, params: {
     policy_key: string; action_key: string; context?: Record<string, unknown>;
     collection_id?: string; user_id?: string;
-  }): Promise<Record<string, any>> {
-    return this.client.get("/v1/confidence", { query, policy_key: params.policy_key,
+  }): Promise<ActionAdviceReceipt> {
+    return this.client.get<ActionAdviceReceipt>("/v1/confidence", { query, policy_key: params.policy_key,
       action_key: params.action_key, context: JSON.stringify(params.context ?? {}),
       collection_id: params.collection_id, end_user_id: params.user_id });
   }

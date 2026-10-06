@@ -61,6 +61,9 @@ export interface SearchResult {
   memory_id: string;
   content: string;
   score: number;
+  rerank_score?: number | null;
+  /** Unrounded provider signal, not a calibrated correctness probability. */
+  raw_rerank_score?: number | null;
   metadata: Record<string, any>;
   created_at: string;
 }
@@ -110,6 +113,21 @@ export interface ProofLoopCandidate {
   action_key: string;
   description?: string;
   features?: Record<string, any>;
+}
+
+/** A machine-readable advice gate, never execution permission. */
+export interface ActionAdviceReceipt {
+  gate: "ASK" | "REVIEW" | "ACT" | "BLOCK";
+  recommendation: string;
+  recommended_action: string;
+  action_confidence?: number | null;
+  blocked_by?: string | null;
+  blocked_hint?: string | null;
+  autonomy_evidence?: Record<string, unknown>;
+  action_evidence?: Record<string, unknown>[];
+  authorization_granted: false;
+  execution_permission_required: true;
+  [key: string]: unknown;
 }
 
 export interface ProofLoopDecisionParams {
@@ -360,6 +378,8 @@ export interface SearchParams {
   include_low_confidence?: boolean;
   group_by_source?: boolean;
   debug?: boolean;
+  /** Compact projection preserves the top-level grounding/proof safety envelope. */
+  view?: "full" | "compact";
 }
 
 export interface ReasonParams {
@@ -472,5 +492,14 @@ export interface OutcomePolicyConfiguration {
   change_response?: boolean;
   contextual_model?: "exact" | "linear_optional" | "adaptive_optional";
   proposal_mode?: "legacy_prior" | "policy_mixture";
+  /** Explicit v3-only selection controls. Approximate dominance is not execution safety. */
+  selection_controls?: {
+    schema_version?: "selection-controls-v1";
+    exclude_dominated_actions?: boolean;
+    minimum_completed_decisions?: number;
+    maximum_proposal_weight?: number;
+    reserved_trials_per_action?: number;
+    reservation_budget_key?: string;
+  };
   actions: Record<string, OutcomeActionPolicy>;
 }

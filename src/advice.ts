@@ -1,6 +1,32 @@
 /** Wire integrity only. Does not authenticate caller probabilities or grant authority. */
 import type { ProofLoopCandidate } from "./types";
 
+export function snapshotBatchItems(items: unknown, outcomes = false): Record<string, any>[] {
+  if (!Array.isArray(items) || items.length < 1 || items.length > 50)
+    throw new Error("batch items must contain 1-50 requests");
+  const copied = jsonSnapshot(items, "batch items", 4_000_000) as Record<string, any>[];
+  for (const item of copied) {
+    if (item === null || Array.isArray(item) || typeof item !== "object")
+      throw new Error("each batch item must be an object");
+    if (typeof item.idempotency_key !== "string" || !item.idempotency_key.trim() || item.idempotency_key.length > 160)
+      throw new Error("each batch item needs a nonempty idempotency_key");
+    if (outcomes && (typeof item.decision_id !== "string" || !item.decision_id.trim() ||
+        item.outcome === null || typeof item.outcome !== "object" || Array.isArray(item.outcome)))
+      throw new Error("outcome items need decision_id and an outcome object");
+    if (!outcomes && "proof_context" in item) {
+      const context = item.proof_context;
+      const token = typeof context === "string" ? context : context?.token;
+      if (typeof token !== "string" || !token.trim())
+        throw new Error("proof_context must contain the original proof token");
+      if ("proof_context_token" in item && item.proof_context_token !== token)
+        throw new Error("conflicting proof context tokens");
+      delete item.proof_context;
+      item.proof_context_token = token;
+    }
+  }
+  return copied;
+}
+
 function jsonSnapshot(
   value: unknown,
   field: string,
