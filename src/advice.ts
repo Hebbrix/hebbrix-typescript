@@ -118,7 +118,8 @@ export function snapshotAdvisorInputs(
       typeof candidate !== "object" ||
       Array.isArray(candidate) ||
       Object.keys(candidate).some(
-        (key) => !["action_key", "description", "features"].includes(key),
+        (key) =>
+          !["action_key", "description", "features", "memory_ids"].includes(key),
       )
     )
       throw new Error("invalid candidate fields");
@@ -146,6 +147,21 @@ export function snapshotAdvisorInputs(
         Array.isArray(candidate.features))
     )
       throw new Error("candidate features must be a JSON object");
+    const memoryIds: unknown = candidate.memory_ids;
+    if (
+      memoryIds != null &&
+      (!Array.isArray(memoryIds) ||
+        memoryIds.length > 50 ||
+        memoryIds.some(
+          (memoryId) =>
+            typeof memoryId !== "string" ||
+            memoryId.length < 1 ||
+            memoryId.length > 255,
+        ))
+    )
+      throw new Error(
+        "candidate memory_ids must be a list of at most 50 memory ids",
+      );
     keys.push(key);
   }
   return { candidates: candidatesCopy, context: contextCopy, keys };

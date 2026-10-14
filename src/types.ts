@@ -113,6 +113,13 @@ export interface ProofLoopCandidate {
   action_key: string;
   description?: string;
   features?: Record<string, any>;
+  /**
+   * Exact memories this action applies, such as its runbook (at most 50).
+   * When this candidate becomes the decision's action, its outcome is
+   * credited to these memories. A proof_context attests what was retrieved
+   * but never earns per-memory outcome credit by itself.
+   */
+  memory_ids?: string[];
 }
 
 /** A machine-readable advice gate, never execution permission. */

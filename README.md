@@ -5,13 +5,13 @@ outcome-learning APIs.
 
 ## Install
 
-The current stable package is **2.5.2**. Start with memory storage and search, or
+The current stable package is **2.5.3**. Start with memory storage and search, or
 the three-call outcome-learning workflow below. Advanced evidence transports
 are opt-in. Installing the SDK does not grant execution permission or establish
 a learning-performance advantage.
 
 ```bash
-npm install hebbrix@2.5.2
+npm install hebbrix@2.5.3
 ```
 
 Node.js 16+ and modern browsers are supported.
@@ -79,6 +79,11 @@ meaning changes. See the
 canonical `gate` is `ASK`, `REVIEW`, `ACT`, or `BLOCK`. `BLOCK` dominates; `ACT` is
 advice, not permission. Your current authorization and human-approval policy
 must independently allow the action before any execution. Scores are not permits.
+
+Version 2.5.3 lets each `proofloop.decide` candidate carry `memory_ids`: the exact
+memories that action applies. When that candidate becomes the decision's action,
+its outcome is credited to those memories; a `proof_context` attests what was
+retrieved but never earns per-memory outcome credit by itself.
 
 Version 2.5.2 adds compact advice, batch, and explicit confirmation helpers.
 These need matching Round9 server routes. Complete receipts remain on the server;

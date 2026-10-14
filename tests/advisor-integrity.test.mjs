@@ -255,3 +255,25 @@ test("cycles, accessors, and symbol fields do not silently change the wire", asy
     assert.equal(calls.post.length, 0);
   }
 });
+test("candidate memory_ids reach the logged decision unchanged", async () => {
+  // A candidate may bind the memories its action applies (outcome credit).
+  const { api, calls } = transport();
+  const params = inputs();
+  params.candidates[1].memory_ids = ["runbook-memory", "checklist-memory"];
+  await api.decideWithAdvice({ ...params, advisor: async () => choice() });
+  const logged = calls.post[0][1].candidates;
+  assert.deepEqual(logged[1].memory_ids, ["runbook-memory", "checklist-memory"]);
+  assert.equal("memory_ids" in logged[0], false);
+});
+for (const memoryIds of ["runbook-memory", [""], ["x".repeat(256)], [7],
+  Array.from({ length: 51 }, () => "m"), { id: "m" }])
+  test(`invalid candidate memory_ids ${JSON.stringify(memoryIds).slice(0, 24)} fail before reads`, async () => {
+    const { api, calls } = transport();
+    const params = inputs();
+    params.candidates[0].memory_ids = memoryIds;
+    let invoked = 0;
+    await assert.rejects(api.decideWithAdvice({ ...params, advisor: async () => { invoked++; return choice(); } }));
+    assert.equal(calls.get.length, 0);
+    assert.equal(calls.post.length, 0);
+    assert.equal(invoked, 0);
+  });
