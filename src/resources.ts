@@ -566,15 +566,30 @@ export class SearchResource extends BaseResource {
   /**
    * Search memories
    */
+  /**
+   * Search memories. Returns only the rows, so the ProofLoop token is not
+   * requested unless `include_proof_context` is set; use `searchWithProof`
+   * to keep it.
+   */
   async search(params: SearchParams): Promise<SearchResult[]> {
-    const response = await this.searchWithProof(params);
+    const response = await this.searchWithProof({
+      ...params,
+      include_proof_context: params.include_proof_context ?? false,
+    });
 
     return response.results;
   }
 
-  /** Search while preserving the automatic ProofLoop evidence context. */
+  /**
+   * Search while preserving the automatic ProofLoop evidence context.
+   * Responses are compact by default (`view: "compact"`): rows keep content,
+   * identity, score, rank, timestamps, confidence and entity scope, and the
+   * safety envelope is unchanged. Pass `view: "full"` or `debug: true` for
+   * ranking diagnostics.
+   */
   async searchWithProof(params: SearchParams): Promise<SearchResponse> {
-    if (params.view !== undefined && !["full", "compact"].includes(params.view))
+    const view = params.view ?? "compact";
+    if (!["full", "compact"].includes(view))
       throw new Error("view must be full or compact");
     const response = await this.client.post<SearchResponse>("/v1/search", {
       query: params.query,
@@ -590,7 +605,12 @@ export class SearchResource extends BaseResource {
       include_low_confidence: params.include_low_confidence ?? false,
       group_by_source: params.group_by_source ?? true,
       debug: params.debug ?? false,
-      ...(params.view === undefined ? {} : { view: params.view }),
+      view,
+      ...(params.include_proof_context === undefined ? {} : { include_proof_context: params.include_proof_context }),
+      // Opt-in fields are sent only when enabled, so servers that reject
+      // unknown fields keep accepting default requests.
+      ...(params.prefer_entity_match ? { prefer_entity_match: true } : {}),
+      ...(params.include_profile ? { include_profile: true } : {}),
     });
     return enforceSearchSafety(response);
   }
@@ -622,6 +642,8 @@ export class SearchResource extends BaseResource {
         agent_id: params.agent_id,
         run_id: params.run_id,
         facets: params.facets ?? [],
+        view: params.view ?? "compact",
+        ...(params.debug ? { debug: true } : {}),
       },
     );
     return enforceSearchSafety(response, "sources");
@@ -962,7 +984,10 @@ export class ProofLoopResource extends BaseResource {
 
 export class RLResource extends BaseResource {
   /**
-   * Train the Memory Manager agent using RL
+   * Train the Memory Manager agent using RL.
+   *
+   * Operator-only: the server requires a Hebbrix administrator session and
+   * refuses API keys with 403, so this route is not in the public OpenAPI.
    */
   async trainMemoryManager(params: {
     num_episodes?: number;
@@ -975,7 +1000,10 @@ export class RLResource extends BaseResource {
   }
 
   /**
-   * Train the Answer Agent using RL
+   * Train the Answer Agent using RL.
+   *
+   * Operator-only: the server requires a Hebbrix administrator session and
+   * refuses API keys with 403, so this route is not in the public OpenAPI.
    */
   async trainAnswerAgent(params: {
     num_episodes?: number;

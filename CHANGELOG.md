@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.6.0 — 2026-10-19 (compact responses, entity scope, chat answers)
+
+- Behaviour change: `search()` and `searchWithProof()` now send `view: "compact"` by default (rows keep content, identity, score, rank, timestamps, `low_confidence` and entity scope; the safety envelope and proof context are unchanged; ranking diagnostics need `debug: true`). Pass `view: "full"` for the previous per-row metadata. `search()` returns rows only and no longer requests the unused ProofLoop token unless `include_proof_context` is set.
+- `reason()` now sends `view: "compact"` by default: the answer, abstention fields (`decision_abstained`, `abstain_reason`), cited sources and safety envelope are kept and the internal decision diagnostics are omitted. Pass `view: "full"` or `debug: true` for the full response.
+- Add `prefer_entity_match` and `include_profile` search options (sent only when true), and type `applies_to`/`entity_match` on rows and `query_entities`/`profile`/`view` on the response.
+- Add `chatAnswerFields()` with the `ChatAnswerStyle`/`ChatAnswerOptions` types: validated `answer_style` (`"natural"` or `"quote"`) and `no_information_reply` request-body fields for `/v1/chat/completions` through any OpenAI-compatible client.
+- Requires the server release of 2026-10-19 for the `/search/reason` compact view; the other options are accepted by current servers.
+
 ## 2.5.3 — 2026-10-14 (candidate memory_ids)
 
 - `ProofLoopCandidate` gains optional `memory_ids` (at most 50 ids of 1-255 characters) naming the exact memories that action applies; when the candidate becomes the decision's action, its outcome is credited to those memories.

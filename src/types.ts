@@ -66,6 +66,14 @@ export interface SearchResult {
   raw_rerank_score?: number | null;
   metadata: Record<string, any>;
   created_at: string;
+  updated_at?: string;
+  rank?: number;
+  /** True only for weak or unverified matches. */
+  low_confidence?: boolean;
+  /** Proper names and record identifiers this memory names ([] = none). */
+  applies_to?: string[];
+  /** match | partial | mismatch | unscoped versus `query_entities`; null when the query names none. */
+  entity_match?: "match" | "partial" | "mismatch" | "unscoped" | null;
 }
 
 export interface SearchResponse {
@@ -84,6 +92,29 @@ export interface SearchResponse {
   degraded?: boolean;
   sdk_safety_reason?: string;
   proof_context?: ProofContext;
+  confidence_reason?: string | null;
+  /** Entities the query names; compared with each row's `applies_to`. */
+  query_entities?: string[];
+  /** Standing profile facts and preferences (`include_profile: true`). */
+  profile?: SearchProfile | null;
+  /** "compact" when the compact projection was applied. */
+  view?: "compact";
+}
+
+export interface SearchProfile {
+  status: "ok" | "unavailable";
+  facts: Array<{
+    id?: string;
+    category?: string;
+    key?: string;
+    value?: string;
+    confidence?: number;
+    updated_at?: string;
+  }>;
+  count: number;
+  avoid_topics?: string[];
+  end_user_id?: string | null;
+  as_of?: string | null;
 }
 
 export interface GroundingReceipt {
@@ -385,8 +416,17 @@ export interface SearchParams {
   include_low_confidence?: boolean;
   group_by_source?: boolean;
   debug?: boolean;
-  /** Compact projection preserves the top-level grounding/proof safety envelope. */
+  /**
+   * Defaults to "compact": the top-level grounding/proof safety envelope is
+   * preserved and ranking diagnostics are omitted unless `debug` is true.
+   */
   view?: "full" | "compact";
+  /** False explicitly omits the optional proof token; no later proof-bound decision can use it. */
+  include_proof_context?: boolean;
+  /** Rank rows that name the query's entities ahead of rows about other entities. */
+  prefer_entity_match?: boolean;
+  /** Also return the end user's standing profile facts in `profile`. */
+  include_profile?: boolean;
 }
 
 export interface ReasonParams {
@@ -398,6 +438,10 @@ export interface ReasonParams {
   agent_id?: string;
   run_id?: string;
   facets?: string[];
+  /** `"compact"` (default) omits internal decision diagnostics; `"full"` keeps them. */
+  view?: "compact" | "full";
+  /** Return the full diagnostic response even when `view` is compact. */
+  debug?: boolean;
 }
 
 export interface ListParams {

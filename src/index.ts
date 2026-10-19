@@ -41,7 +41,7 @@
  *
  * @packageDocumentation
  * @module hebbrix
- * @version 2.5.3
+ * @version 2.6.0
  */
 
 export { MemoryClient } from "./client";
@@ -50,3 +50,4 @@ export * from "./errors";
 export * from "./resources";
 export * from "./experience-workflow";
 export * from "./safety";
+export * from "./chat";
