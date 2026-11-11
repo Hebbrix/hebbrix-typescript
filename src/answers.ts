@@ -44,7 +44,8 @@ export type AnswerAction =
   | "abstain"
   | "retry"
   | "say_unknown"
-  | "verify_authorization";
+  | "verify_authorization"
+  | "use_as_context";
 
 /**
  * A permission question answered by a rule that restricts the act to a group no
@@ -52,6 +53,20 @@ export type AnswerAction =
  * rule is in `context`; check the asker's role in your own system.
  */
 export const AUTHORIZATION_NOT_VERIFIABLE = "authorization_not_verifiable";
+
+/**
+ * A Reason request for a suggestion or plan has no stored answer: its sources
+ * are the memories that should shape what your model composes
+ * (`grounding.answerability` "context_only"). Context, never a verified fact or
+ * a permission.
+ */
+export const CONTEXT_ONLY = "context_only";
+
+/**
+ * `requireReady`: the scope's index is not complete, or the server says the
+ * answer may still change (`indexing.answer_risk`).
+ */
+export const INDEX_NOT_READY = "index_not_ready";
 
 /** What to do instead of answering, for each `answer_status`. */
 export const ANSWER_ACTIONS: Readonly<Record<AnswerStatus, AnswerAction>> = {
@@ -82,12 +97,32 @@ export interface AnswerDecision<Row = Record<string, any>> {
 
 export interface AnswerOptions {
   /**
-   * For a question about the past that your application recognises: superseded
-   * and historical rows then count, whatever the response says of the present.
-   * Keep each row's `revision_status` and `stated_at` in what you pass to the
-   * model, so it can tell the versions apart. Conflicting rows never count.
+   * For a question about the past that your application recognises. It
+   * overrides one thing: a superseded or historical row then counts as
+   * evidence, so a response the server answered or marked `superseded` can be
+   * answered from its earlier versions. It never overrides `unverified`,
+   * `no_relevant_memory`, `indexing`, `conflicting` or
+   * `authorization_not_verifiable`. Keep each row's `revision_status` and
+   * `stated_at` in what you pass to the model, so it can tell the versions apart.
    */
   history?: boolean;
+  /**
+   * For high-stakes flows (money, health, actions): hold the answer, with
+   * action `retry`, until `indexing.status` is `ready` and
+   * `indexing.answer_risk` is `none`. A response that does not say is not ready.
+   */
+  requireReady?: boolean;
+}
+
+function isReady(data: Record<string, any>): boolean {
+  const indexing = data.indexing;
+  if (typeof indexing !== "object" || indexing === null) return false;
+  return (
+    indexing.status === "ready" &&
+    (indexing.answer_risk === undefined ||
+      indexing.answer_risk === null ||
+      indexing.answer_risk === "none")
+  );
 }
 
 // Set by the SDK on a response whose rows it kept although it is degraded: not
@@ -113,6 +148,13 @@ function isHistory(row: Row, searchRow: boolean): boolean {
 /**
  * Whether you may answer from `response` (a `searchWithProof` or `reason`
  * result), the rows to answer from, and what to do when you may not.
+ *
+ * Every server signal is enforced: `answer_status`, `no_match`,
+ * `abstain_recommended`, `decision_abstained`, `confidence_reason` and each
+ * row's `low_confidence` and `revision_status`. A Reason result for a
+ * suggestion or plan (`context_only`) returns action `use_as_context`: give
+ * `decision.context` to your model to shape what it suggests, never as an
+ * established fact or a permission to act.
  */
 export function shouldAnswer<R extends object = Row>(
   response: object | null | undefined,
@@ -169,7 +211,13 @@ export function shouldAnswer<R extends object = Row>(
   if (data.confidence_reason === AUTHORIZATION_NOT_VERIFIABLE) {
     return declined(AUTHORIZATION_NOT_VERIFIABLE, "verify_authorization", rows, cited);
   }
-  if (options.history) {
+  if (data.grounding?.answerability === CONTEXT_ONLY) {
+    return declined(CONTEXT_ONLY, "use_as_context", rows, cited);
+  }
+  if (options.requireReady && !isReady(data)) {
+    return declined(INDEX_NOT_READY, "retry", rows, cited);
+  }
+  if (options.history && (status === "answerable" || status === "superseded")) {
     const usable = rows.filter((row) => isHistory(row, searchRows));
     if (usable.length > 0) return allowed("history", usable);
   }
@@ -229,7 +277,8 @@ function profileLines(profile: unknown): string[] {
   ).filter((topic: unknown) => typeof topic === "string" && topic) as string[];
   const projection = asRecord(data.projection) ?? {};
   const pending = projection.status === "pending";
-  if (facts.length === 0 && avoid.length === 0 && !pending) return [];
+  const failed = projection.status === "failed";
+  if (facts.length === 0 && avoid.length === 0 && !pending && !failed) return [];
   const scope = asRecord(data.scope) ?? { end_user_id: data.end_user_id };
   const details = Object.entries(scope)
     .filter(([, value]) => value)
@@ -264,6 +313,14 @@ function profileLines(profile: unknown): string[] {
     lines.push(
       `- still being updated: ${writes} not yet reflected; a fact here may be ` +
         "missing or about to change.",
+    );
+  } else if (failed) {
+    const count = projection.failed_writes;
+    const writes =
+      Number.isInteger(count) && count > 0 ? `${count} recent writes` : "recent writes";
+    lines.push(
+      `- incomplete: ${writes} could not be reflected; a fact from them may be ` +
+        "missing.",
     );
   }
   return lines;
@@ -336,6 +393,19 @@ export function answerContext(
         : "Memories to answer from (current, supported for this message):",
     ];
     resolved.memories.forEach((memory, index) => {
+      const row = memory as Row;
+      const details = memoryDetails(row);
+      lines.push(
+        `[${index + 1}]` + (details.length ? ` (${details.join("; ")})` : ""),
+      );
+      lines.push(String(row.content ?? ""));
+    });
+    sections.push(lines.join("\n"));
+  } else if (resolved.reason === CONTEXT_ONLY && resolved.context.length) {
+    const lines = [
+      "Memories that should shape the suggestion (context: not established facts, and never permission to act):",
+    ];
+    resolved.context.forEach((memory, index) => {
       const row = memory as Row;
       const details = memoryDetails(row);
       lines.push(

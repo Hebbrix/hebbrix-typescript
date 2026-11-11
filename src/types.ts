@@ -191,8 +191,13 @@ export interface SearchProfile {
    * `ready` means every accepted write is reflected.
    */
   projection?: {
-    status: "pending" | "ready" | "unknown";
+    status: "pending" | "ready" | "failed" | "unknown";
     pending_writes?: number | null;
+    /** `failed`: writes that will not be reflected unless their receipt is retried. */
+    failed_writes?: number | null;
+    failure?: { reason: string; retryable: boolean } | null;
+    /** Poll again after this many seconds while `pending` or `failed`. */
+    retry_after_seconds?: number | null;
     capped?: boolean;
   };
 }
@@ -627,6 +632,14 @@ export interface APIKeyResponse {
   prefix: string;
   created_at: string;
 }
+/** An earlier target/description of an action whose outcomes still count as its evidence. */
+export interface OutcomeKeptDefinition {
+  target: string;
+  description: string;
+  /** The configuration revision whose update kept it (keep_evidence). */
+  kept_at_revision: number;
+}
+
 /** Explicit owner assumptions; never verified history or execution permission. */
 export interface OutcomeActionPolicy {
   target: string;
@@ -639,6 +652,14 @@ export interface OutcomeActionPolicy {
   prior_mean?: number;
   prior_strength?: number;
   prior_source?: string;
+  /**
+   * Request only (configurePolicy of an existing policy): keep the outcomes
+   * recorded under this action's earlier target/description after a
+   * deliberate non-semantic edit. Never stored or returned. Needs API 1.4.25.
+   */
+  keep_evidence?: boolean;
+  /** Read-only, maintained by the server (sent values are ignored): earlier definitions kept with keep_evidence. */
+  readonly evidence_from?: ReadonlyArray<OutcomeKeptDefinition>;
 }
 
 export interface OutcomePolicyConfiguration {

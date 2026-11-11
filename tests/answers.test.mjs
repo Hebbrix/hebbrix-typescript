@@ -279,3 +279,51 @@ test("an unverified permission is its own action with the rule as context", () =
     ["new"],
   );
 });
+
+test("history never overrides an unverified response", () => {
+  const old = row("old", {
+    is_current: false,
+    revision_status: "historical",
+    low_confidence: true,
+  });
+  const page = search({ answer_status: "unverified", abstain_recommended: true }, [old]);
+  const decision = shouldAnswer(page, { history: true });
+  assert.equal(decision.answer, false);
+  assert.equal(decision.action, "abstain");
+});
+
+test("a high-stakes answer waits for a ready index", () => {
+  assert.equal(
+    shouldAnswer(search({ indexing: { status: "ready", answer_risk: "none" } }), {
+      requireReady: true,
+    }).answer,
+    true,
+  );
+  for (const indexing of [
+    { status: "incomplete", answer_risk: "may_change" },
+    { status: "ready", answer_risk: "may_change" },
+    undefined,
+  ]) {
+    const decision = shouldAnswer(search({ indexing }), { requireReady: true });
+    assert.equal(decision.answer, false);
+    assert.equal(decision.action, "retry");
+    assert.equal(decision.reason, "index_not_ready");
+  }
+});
+
+test("a suggestion is context to shape, never an answer", () => {
+  const page = {
+    answer: null,
+    sources: [{ memory_id: "camera", content: "The user owns a Fuji X-T5." }],
+    decision_abstained: true,
+    answer_status: "unverified",
+    grounding: { status: "supported", answerability: "context_only" },
+  };
+  const decision = shouldAnswer(page);
+  assert.equal(decision.answer, false);
+  assert.equal(decision.action, "use_as_context");
+  assert.deepEqual(
+    decision.context.map((r) => r.memory_id),
+    ["camera"],
+  );
+});

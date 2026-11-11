@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8.0 — 2026-11-11 (high-stakes readiness, history and suggestions)
+
+- `shouldAnswer(response, { requireReady: true })` (also on `usableMemories` and `answerContext`): for high-stakes flows, holds the answer with action `retry` and reason `index_not_ready` until `indexing.status` is `ready` and `indexing.answer_risk` is `none`. A response that does not report its indexing is not ready.
+- Behaviour change: `{ history: true }` now applies only when the server answered or marked the response `superseded`; it no longer overrides `unverified`, `no_relevant_memory` or `indexing`.
+- A Reason result for a suggestion or plan (`grounding.answerability: "context_only"`) returns the new action `use_as_context` with its memories in `context`; `answerContext` lists them as context that is neither an established fact nor permission to act.
+- Types: the included profile's `projection` gains `failed`, `failed_writes`, `failure` and `retry_after_seconds` (server 1.4.25); `OutcomeActionPolicy` gains `keep_evidence` and the read-only `evidence_from` (`OutcomeKeptDefinition`).
+
 ## 2.7.0 — 2026-11-11 (answer decisions and answer context)
 
 - New `shouldAnswer(response, options?)`: decides in code whether a `searchWithProof()` or `reason()` response may be answered from, returning an `AnswerDecision` with `answer`, `action` (`answer`, `say_unknown`, `abstain`, `verify_authorization`, `ask_user`, `retry` or `say_no_longer_current`), `reason`, the usable `memories` and the `context` rows never to answer from. `{ history: true }` counts superseded and historical versions for questions about the past.

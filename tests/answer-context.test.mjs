@@ -109,6 +109,29 @@ test("a profile still being projected says so", () => {
   );
 });
 
+test("a profile whose writes failed to project says it is incomplete", () => {
+  const failed = {
+    ...PROFILE,
+    facts: [],
+    avoid_topics: [],
+    projection: {
+      status: "failed",
+      pending_writes: 0,
+      failed_writes: 2,
+      capped: false,
+      failure: { reason: "profile_extraction_failed", retryable: true },
+      retry_after_seconds: null,
+    },
+  };
+  assert.equal(
+    answerContext(search([], failed, { answer_status: "no_relevant_memory" })),
+    "Standing profile of this user (applies to every reply; collection_id c-1; " +
+      "end_user_id user-42; as of 2026-11-08; projection failed):\n" +
+      "- incomplete: 2 recent writes could not be reflected; a fact from them may " +
+      "be missing.",
+  );
+});
+
 test("an unavailable profile is not presented as empty", () => {
   const context = answerContext(
     search([ALLERGY], { status: "unavailable", facts: [], count: 0 }),
