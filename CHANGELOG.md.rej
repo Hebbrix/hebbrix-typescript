@@ -1,9 +1,0 @@
-diff a/CHANGELOG.md b/CHANGELOG.md	(rejected hunks)
-@@ -15,6 +15,7 @@
- 
- ## Unreleased — local source
- 
-+- Add `answerContext(response, decision)`: the text to give your own model with the user's message, with the end user's standing profile (`include_profile: true`: each fact's category, confidence and date, topics to avoid, its scope, and whether recent writes are still being projected; an unavailable profile is said to be unavailable) and only the rows `shouldAnswer` allows, numbered, each with its memory type, date, subject, named entities, revision status and support. A declined decision keeps the profile. Type `scope` and `projection` on `SearchProfile`. Document that `memories.create()` defaults to `infer: false` (stored verbatim) while `POST /v1/memories` over REST defaults to `infer: true`.
- - Type `keyword_searchable` on memory statuses. Needs the matching server.
- - Type `indexing.answer_risk` (`none`, `may_change`, `incomplete_set`): what memories still being indexed mean for the question asked. Needs the matching server.
- - Add `shouldAnswer(response)` and `usableMemories(response)`: decide in code, before invoking a model, what a `searchWithProof()` or `reason()` response lets you do. They return the rows safe to pass as evidence, or the reason and action when none are, and fail closed on a response they do not understand. Needs the matching server.
