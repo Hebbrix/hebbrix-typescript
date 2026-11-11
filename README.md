@@ -5,13 +5,13 @@ outcome-learning APIs.
 
 ## Install
 
-The current stable package is **2.6.0**. Start with memory storage and search, or
+The current stable package is **2.7.0**. Start with memory storage and search, or
 the three-call outcome-learning workflow below. Advanced evidence transports
 are opt-in. Installing the SDK does not grant execution permission or establish
 a learning-performance advantage.
 
 ```bash
-npm install hebbrix@2.6.0
+npm install hebbrix@2.7.0
 ```
 
 Node.js 16+ and modern browsers are supported.
@@ -26,7 +26,8 @@ const collection = await client.collections.create({ name: "Support memory" });
 const memory = await client.memories.create({
   collection_id: collection.id,
   content: "Customer prefers concise replies",
-  wait_for_index: true,
+  infer: false, // store verbatim (the SDK default; REST defaults to true)
+  wait_for_index: true, // return once it is searchable
   idempotency_key: "customer-42-preference-v1",
 });
 const results = await client.search({
@@ -35,6 +36,53 @@ const results = await client.search({
 });
 console.log(memory, results);
 ```
+
+> **`memories.create()` and `POST /v1/memories` have different defaults.** The
+> SDK stores the content verbatim as one memory unless you pass `infer: true`;
+> the REST endpoint called without `infer` extracts facts with the server's
+> language model (`infer` defaults to `true` there). Pass `infer` and
+> `wait_for_index` explicitly, as above, so a call reads the same through the
+> SDK and over HTTP. Use `infer: true` (or `/v1/memories/process`) for
+> conversations; `infer: false` for a fact you already have in final form.
+
+## Decide before you invoke your model
+
+A model told to abstain can still answer. Decide in code, and give it only the rows
+that passed. `search()` returns only the rows, so use `searchWithProof()` or
+`reason()`, which keep the fields this reads:
+
+```typescript
+import { answerContext, shouldAnswer } from "hebbrix";
+
+const response = await client.searchWithProof({
+  query,
+  user_id: "customer-42",
+  include_profile: true,
+});
+const decision = shouldAnswer(response);
+if (!decision.answer) {
+  // decision.action: ask_user, say_no_longer_current, say_unknown, retry,
+  // verify_authorization or abstain. decision.reason says why;
+  // decision.context holds the rows, never to answer from.
+  return myReplyFor(decision.action);
+}
+// The user's standing profile plus the rows you may answer from, each with its
+// date, memory type, subject and support.
+return myLlm(query, answerContext(response, decision));
+```
+
+`answerContext(response, decision)` keeps the end user's standing profile
+(`include_profile: true`) beside the rows: preferences such as "keep answers
+short" reach your model even when they did not rank for this message. It lists
+each fact with its category, confidence and date, the topics to avoid, the
+profile's `scope`, and says so when the profile is still being updated
+(`projection.status: "pending"`) or could not be read, so a missing preference
+is not taken as absent. When the decision is not to answer it returns the
+profile alone. `usableMemories(response)` returns just the rows. Pass
+`{ history: true }` for a question about the past, when superseded and
+historical versions should count. `verify_authorization` means the returned rule
+limits the action to a group the store cannot place the user in: use the rule,
+and check the permission in your own system.
 
 ## Learn from outcomes in three calls
 
@@ -124,6 +172,7 @@ receipt context.
 const controller = new AbortController();
 const ready = await client.memories.create({
   content: "Customer prefers concise replies",
+  infer: false,
   wait_for_index: true,
   index_timeout_ms: 30_000,
   index_poll_interval_ms: 250,

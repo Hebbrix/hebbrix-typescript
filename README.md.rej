@@ -1,0 +1,54 @@
+diff a/README.md b/README.md	(rejected hunks)
+@@ -37,6 +38,14 @@ const results = await client.search({
+ console.log(memory, results);
+ ```
+ 
++> **`memories.create()` and `POST /v1/memories` have different defaults.** The
++> SDK stores the content verbatim as one memory unless you pass `infer: true`;
++> the REST endpoint called without `infer` extracts facts with the server's
++> language model (`infer` defaults to `true` there). Pass `infer` and
++> `wait_for_index` explicitly, as above, so a call reads the same through the
++> SDK and over HTTP. Use `infer: true` (or `/v1/memories/process`) for
++> conversations; `infer: false` for a fact you already have in final form.
++
+ Search responses are compact by default: each row keeps its content, identity,
+ score, rank, timestamps, `low_confidence`, and entity scope (`applies_to`,
+ `entity_match`), and the safety envelope is unchanged. Pass `view: "full"` for
+@@ -52,19 +61,33 @@ that passed. `search()` returns only the rows, so use `searchWithProof()` or
+ `reason()`, which keep the fields this reads:
+ 
+ ```typescript
+-import { shouldAnswer } from "hebbrix";
++import { answerContext, shouldAnswer } from "hebbrix";
+ 
+-const response = await client.searchWithProof({ query, user_id: "customer-42" });
++const response = await client.searchWithProof({
++  query,
++  user_id: "customer-42",
++  include_profile: true,
++});
+ const decision = shouldAnswer(response);
+ if (!decision.answer) {
+   // decision.action: ask_user, say_no_longer_current, say_unknown, retry or abstain.
+   // decision.reason says why; decision.context holds the rows, never to answer from.
+   return myReplyFor(decision.action);
+ }
+-return myLlm(query, decision.memories);
++// The user's standing profile plus the rows you may answer from, each with its
++// date, memory type, subject and support.
++return myLlm(query, answerContext(response, decision));
+ ```
+ 
+-`usableMemories(response)` returns just the rows. Pass `{ history: true }` for a
++`answerContext(response, decision)` keeps the end user's standing profile
++(`include_profile: true`) beside the rows: preferences such as "keep answers
++short" reach your model even when they did not rank for this message. It lists
++each fact with its category, confidence and date, the topics to avoid, the
++profile's `scope`, and says so when the profile is still being updated
++(`projection.status: "pending"`) or could not be read, so a missing preference
++is not taken as absent. When the decision is not to answer it returns the
++profile alone. (Local source: not in the published package; needs a separately
++published release.) `usableMemories(response)` returns just the rows. Pass `{ history: true }` for a
+ question about the past, when superseded and historical versions should count.
+ `reason()` takes `deadline_ms`; a `timed_out` response is an abstention. The
+ [integration guide](https://hebbrix.com/docs) has the field reference and decision

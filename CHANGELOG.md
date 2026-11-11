@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.0 — 2026-11-11 (answer decisions and answer context)
+
+- New `shouldAnswer(response, options?)`: decides in code whether a `searchWithProof()` or `reason()` response may be answered from, returning an `AnswerDecision` with `answer`, `action` (`answer`, `say_unknown`, `abstain`, `verify_authorization`, `ask_user`, `retry` or `say_no_longer_current`), `reason`, the usable `memories` and the `context` rows never to answer from. `{ history: true }` counts superseded and historical versions for questions about the past.
+- New `answerContext(response, decision)`: renders the end user's standing profile (facts with category, confidence and date, topics to avoid, scope, and whether it is still being projected or unavailable) beside the rows the decision allows, each with its date, memory type, subject and support.
+- New `usableMemories(response)` and the response types `AnswerStatus`, `RevisionStatus` and profile `scope` / `projection`.
+- Docs: `memories.create()` stores verbatim unless `infer: true`, while `POST /v1/memories` extracts by default; examples pass `infer` and `wait_for_index` explicitly.
+
 ## 2.6.0 — 2026-10-19 (compact responses, entity scope, chat answers)
 
 - Behaviour change: `search()` and `searchWithProof()` now send `view: "compact"` by default (rows keep content, identity, score, rank, timestamps, `low_confidence` and entity scope; the safety envelope and proof context are unchanged; ranking diagnostics need `debug: true`). Pass `view: "full"` for the previous per-row metadata. `search()` returns rows only and no longer requests the unused ProofLoop token unless `include_proof_context` is set.

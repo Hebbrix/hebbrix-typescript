@@ -139,6 +139,13 @@ export class MemoriesResource extends BaseResource {
   /**
    * Create one logical memory write. When `wait_for_index=true`, a durable
    * pending receipt is polled without issuing a second create request.
+   *
+   * **Stores verbatim by default; the REST endpoint does not.** This method
+   * sends `infer: false` unless you pass `infer: true`, while
+   * `POST /v1/memories` over HTTP without `infer` extracts facts (`infer`
+   * defaults to `true` there), so the same content can become one verbatim
+   * memory here and several extracted facts over REST. Pass `infer` and
+   * `wait_for_index` explicitly.
    */
   async create(params: CreateMemoryParams): Promise<MemoryAddResponse> {
     if (!params.content?.trim() && !params.messages?.length) {
@@ -611,6 +618,7 @@ export class SearchResource extends BaseResource {
       // unknown fields keep accepting default requests.
       ...(params.prefer_entity_match ? { prefer_entity_match: true } : {}),
       ...(params.include_profile ? { include_profile: true } : {}),
+      ...(params.include_superseded ? { include_superseded: true } : {}),
     });
     return enforceSearchSafety(response);
   }
@@ -644,6 +652,9 @@ export class SearchResource extends BaseResource {
         facets: params.facets ?? [],
         view: params.view ?? "compact",
         ...(params.debug ? { debug: true } : {}),
+        ...(params.deadline_ms === undefined
+          ? {}
+          : { deadline_ms: params.deadline_ms }),
       },
     );
     return enforceSearchSafety(response, "sources");

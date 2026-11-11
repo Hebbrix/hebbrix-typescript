@@ -47,6 +47,26 @@ export interface Memory {
   processing_status?: string;
   /** True only when the memory is available to search. */
   searchable?: boolean;
+  searchability_reason?: string;
+  conflict_status?: string;
+  /** The stored link to the memory that replaced this one. */
+  superseded_by_id?: string | null;
+  /** Its standing among the versions of what it states, as on a search row. */
+  revision_status?: RevisionStatus;
+  is_current?: boolean;
+  superseded_by?: string | null;
+  /** `GET /v1/memories/{id}`: the memories a stored link says this one replaced. */
+  supersedes?: string[] | null;
+  /** `GET /v1/memories/{id}`: when this memory stopped being current. */
+  valid_until?: string | null;
+  /** `GET /v1/memories/{id}`: when the statement was made. */
+  stated_at?: string | null;
+  /** `GET /v1/memories/{id}`: a stored link, or a later memory that takes this one back. */
+  currency_basis?: CurrencyBasis | null;
+  /** `GET /v1/memories/{id}`: values no longer current; other details may still hold. */
+  replaced_values?: string[] | null;
+  /** `GET /v1/memories/{id}`: whether the decision on what this record corrects has run. */
+  revision_link_status?: "pending" | "completed" | "failed" | null;
   outbox_event_id?: string;
   status_url?: string;
   created_at: string;
@@ -74,6 +94,45 @@ export interface SearchResult {
   applies_to?: string[];
   /** match | partial | mismatch | unscoped versus `query_entities`; null when the query names none. */
   entity_match?: "match" | "partial" | "mismatch" | "unscoped" | null;
+  /** False when a correction or a later memory replaced this one. */
+  is_current?: boolean;
+  /** Its standing among the versions of what it states. */
+  revision_status?: RevisionStatus;
+  superseded_by?: string | null;
+  /** The memories this one replaced. */
+  supersedes?: string[] | null;
+  /** With `conflicting`: the returned memories it contradicts, latest stated first. */
+  conflicts_with?: string[] | null;
+  valid_until?: string | null;
+  /** When the statement was made; order versions by it, not by `created_at`. */
+  stated_at?: string | null;
+  replaced_values?: string[] | null;
+  currency_basis?: CurrencyBasis | null;
+}
+
+/** What a response lets a caller do. `shouldAnswer` decides from it in code. */
+export type AnswerStatus =
+  | "answerable"
+  | "conflicting"
+  | "superseded"
+  | "unverified"
+  | "indexing"
+  | "no_relevant_memory";
+
+export type RevisionStatus =
+  | "current"
+  | "superseded"
+  | "conflicting"
+  | "historical";
+
+export type CurrencyBasis = "revision" | "later_memory";
+
+/** Availability of accepted memories in the exact scope searched. */
+export interface ScopeIndexing {
+  status: "ready" | "incomplete" | "failed" | "unknown";
+  pending_memories?: number;
+  failed_memories?: number;
+  capped?: boolean;
 }
 
 export interface SearchResponse {
@@ -84,6 +143,10 @@ export interface SearchResponse {
   processing_time_ms: number;
   no_match: boolean;
   abstain_recommended: boolean;
+  /** What this response lets a caller do, in one value. */
+  answer_status?: AnswerStatus;
+  /** Whether memories accepted for this scope are still being indexed. */
+  indexing?: ScopeIndexing | null;
   query_confidence: number;
   grounding: GroundingReceipt;
   evidence_ids: string[];
@@ -115,6 +178,23 @@ export interface SearchProfile {
   avoid_topics?: string[];
   end_user_id?: string | null;
   as_of?: string | null;
+  /** The exact scope whose facts these are (servers that report it). */
+  scope?: {
+    collection_id?: string | null;
+    end_user_id?: string | null;
+    agent_id?: string | null;
+  };
+  /**
+   * Whether recent writes of this scope are still being projected into the
+   * profile: `pending` means a fact may still appear or change (with the
+   * number of unfinished writes, `capped` when it is at least that many);
+   * `ready` means every accepted write is reflected.
+   */
+  projection?: {
+    status: "pending" | "ready" | "unknown";
+    pending_writes?: number | null;
+    capped?: boolean;
+  };
 }
 
 export interface GroundingReceipt {
@@ -261,6 +341,14 @@ export interface ReasoningSource {
   memory_id: string;
   content: string;
   score: number;
+  low_confidence?: boolean;
+  is_current?: boolean;
+  revision_status?: RevisionStatus;
+  superseded_by?: string | null;
+  supersedes?: string[] | null;
+  stated_at?: string | null;
+  replaced_values?: string[] | null;
+  currency_basis?: CurrencyBasis | null;
 }
 
 export interface ReasoningResponse {
@@ -269,6 +357,18 @@ export interface ReasoningResponse {
   metadata: Record<string, any>;
   no_match: boolean;
   abstain_recommended: boolean;
+  /** What this response lets a caller do, in one value. */
+  answer_status?: AnswerStatus;
+  /** True exactly when `answer` is null. */
+  decision_abstained?: boolean;
+  abstain_reason?: string | null;
+  /** Context for a decision the engine could not verify; never an answer. */
+  cited_context?: string | null;
+  /** `partial` or `timed_out` when the latency budget cut the response short. */
+  reasoning_status?: "completed" | "partial" | "timed_out";
+  indexing?: ScopeIndexing | null;
+  /** Where the response's time went, per stage. */
+  timings?: Record<string, any> | null;
   query_confidence: number;
   grounding: GroundingReceipt;
   evidence_ids: string[];
@@ -299,12 +399,18 @@ export interface CreateMemoryParams {
   source_type?: string;
   source_reference?: string;
   metadata?: Record<string, any>;
+  /**
+   * `true` extracts facts with the server's language model; `false` stores the
+   * content verbatim as one memory. The SDK sends `false` when omitted, unlike
+   * `POST /v1/memories` over REST, where it defaults to `true`.
+   */
   infer?: boolean;
   user_id?: string;
   agent_id?: string;
   run_id?: string;
   app_id?: string;
   namespace?: string;
+  /** Return only once the memory is searchable (default `false`). */
   wait_for_index?: boolean;
   async_dispatch?: boolean;
   title?: string;
@@ -427,6 +533,8 @@ export interface SearchParams {
   prefer_entity_match?: boolean;
   /** Also return the end user's standing profile facts in `profile`. */
   include_profile?: boolean;
+  /** Also return superseded versions, flagged `low_confidence`, for an audit view. */
+  include_superseded?: boolean;
 }
 
 export interface ReasonParams {
@@ -442,6 +550,8 @@ export interface ReasonParams {
   view?: "compact" | "full";
   /** Return the full diagnostic response even when `view` is compact. */
   debug?: boolean;
+  /** The response's latency budget, at most the server's; set the client timeout above it. */
+  deadline_ms?: number;
 }
 
 export interface ListParams {
