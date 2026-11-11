@@ -5,13 +5,13 @@ outcome-learning APIs.
 
 ## Install
 
-The current stable package is **2.8.0**. Start with memory storage and search, or
+The current stable package is **2.9.0**. Start with memory storage and search, or
 the three-call outcome-learning workflow below. Advanced evidence transports
 are opt-in. Installing the SDK does not grant execution permission or establish
 a learning-performance advantage.
 
 ```bash
-npm install hebbrix@2.8.0
+npm install hebbrix@2.9.0
 ```
 
 Node.js 16+ and modern browsers are supported.
@@ -85,7 +85,11 @@ historical versions should count (it never overrides `unverified`,
 for a high-stakes flow: the answer is then also held, with action `retry`, until
 `indexing.status` is `ready` and `indexing.answer_risk` is `none`. A Reason
 suggestion or plan (`context_only`) returns action `use_as_context`: its memories
-shape what your model suggests, and are never a fact or a permission.
+shape what your model suggests, and are never a fact or a permission. An
+`unverified` search whose rows include `evidence_role: "applicable_rule"`
+returns reason `applicable_rule` and action `use_as_context`: the rule speaks to
+the asked case but the API has not verified it decides it; let your model apply
+it, or call `reason()`.
 `verify_authorization` means the returned rule
 limits the action to a group the store cannot place the user in: use the rule,
 and check the permission in your own system.

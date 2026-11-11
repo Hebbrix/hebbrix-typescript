@@ -151,11 +151,28 @@ function isHistory(row: Row, searchRow: boolean): boolean {
  *
  * Every server signal is enforced: `answer_status`, `no_match`,
  * `abstain_recommended`, `decision_abstained`, `confidence_reason` and each
- * row's `low_confidence` and `revision_status`. A Reason result for a
+ * row's `low_confidence` and `revision_status`. A response marked
+ * `answerable` that also sets `no_match`, `abstain_recommended` or
+ * `decision_abstained` contradicts itself (the server never sends one) and is
+ * declined, with that flag as the reason, in every mode. With
+ * `history: true`, a `superseded` response may be answered from its earlier
+ * versions: its abstention flags concern the present. An `unverified` search
+ * response whose rows include an `evidence_role: "applicable_rule"` row returns
+ * reason `applicable_rule` and action `use_as_context`, those rules first in
+ * `decision.context`: policy that speaks to the asked case but that the API
+ * has not verified decides it; let your model apply it, or call `reason`.
+ * A Reason result for a
  * suggestion or plan (`context_only`) returns action `use_as_context`: give
  * `decision.context` to your model to shape what it suggests, never as an
  * established fact or a permission to act.
  */
+const ABSTENTION_FLAGS = ["no_match", "abstain_recommended", "decision_abstained"];
+/**
+ * A row's `evidence_role` for a current rule that speaks to the asked case but
+ * is not verified to decide it (see `shouldAnswer`).
+ */
+export const APPLICABLE_RULE = "applicable_rule";
+
 export function shouldAnswer<R extends object = Row>(
   response: object | null | undefined,
   options: AnswerOptions = {},
@@ -217,15 +234,36 @@ export function shouldAnswer<R extends object = Row>(
   if (options.requireReady && !isReady(data)) {
     return declined(INDEX_NOT_READY, "retry", rows, cited);
   }
-  if (options.history && (status === "answerable" || status === "superseded")) {
+  const flags = ABSTENTION_FLAGS.filter((flag) => data[flag] === true);
+  if (status === "answerable" && flags.length > 0) {
+    // The server never marks a response answerable while it recommends
+    // abstaining. An envelope that does contradicts itself, and a
+    // contradiction is not an answer, in history mode or not.
+    return declined(flags[0], "abstain", rows, cited);
+  }
+  if (
+    options.history &&
+    (status === "answerable" || status === "superseded") &&
+    !flags.includes("no_match")
+  ) {
+    // A superseded response recommends abstaining for the present: every
+    // relevant record states a value that no longer holds. That is what a
+    // question about the past reads, so those flags do not bar it here.
     const usable = rows.filter((row) => isHistory(row, searchRows));
     if (usable.length > 0) return allowed("history", usable);
   }
+  if (status === "unverified") {
+    const rules = rows.filter((row) => row.evidence_role === APPLICABLE_RULE);
+    if (rules.length > 0) {
+      // A rule that speaks to the asked case, not verified to decide it:
+      // policy for your model to apply, never an established answer or a
+      // permission (authorization questions were declined above).
+      const others = rows.filter((row) => !rules.includes(row));
+      return declined(APPLICABLE_RULE, "use_as_context", [...rules, ...others], cited);
+    }
+  }
   if (status !== "answerable") {
     return declined(status, ANSWER_ACTIONS[status], rows, cited);
-  }
-  for (const flag of ["no_match", "abstain_recommended", "decision_abstained"]) {
-    if (data[flag] === true) return declined(flag, "abstain", rows, cited);
   }
   const usable = rows.filter((row) => isEvidence(row, searchRows));
   if (usable.length === 0) {

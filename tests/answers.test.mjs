@@ -327,3 +327,85 @@ test("a suggestion is context to shape, never an answer", () => {
     ["camera"],
   );
 });
+
+for (const flag of ["abstain_recommended", "decision_abstained", "no_match"]) {
+  test(`an answerable status beside ${flag} fails closed in every mode`, () => {
+    // A contradictory envelope (the server never sends one): answerable, an
+    // explicit abstention flag, and only an earlier, unestablished row.
+    const page = search(
+      { indexing: { status: "ready", answer_risk: "none" }, [flag]: true },
+      [
+        row("synthetic-history", {
+          revision_status: "historical",
+          is_current: false,
+          low_confidence: true,
+        }),
+      ],
+    );
+    for (const options of [{}, { history: true }, { history: true, requireReady: true }]) {
+      const decision = shouldAnswer(page, options);
+      assert.equal(decision.answer, false);
+      assert.equal(decision.reason, flag);
+      assert.equal(decision.action, "abstain");
+      assert.deepEqual(decision.memories, []);
+      assert.deepEqual(usableMemories(page, options), []);
+    }
+  });
+}
+
+test("a superseded Reason result still answers a history question", () => {
+  const page = reason(
+    { answer: null, decision_abstained: true, answer_status: "superseded" },
+    [source("old", { is_current: false, revision_status: "superseded" })],
+  );
+  assert.equal(shouldAnswer(page).answer, false);
+  const decision = shouldAnswer(page, { history: true });
+  assert.equal(decision.answer, true);
+  assert.equal(decision.reason, "history");
+  assert.deepEqual(decision.memories.map((r) => r.memory_id), ["old"]);
+});
+
+test("history never answers a response that matched nothing", () => {
+  const page = search(
+    { answer_status: "superseded", abstain_recommended: true, no_match: true },
+    [row("old", { is_current: false, revision_status: "superseded", low_confidence: true })],
+  );
+  const decision = shouldAnswer(page, { history: true });
+  assert.equal(decision.answer, false);
+  assert.equal(decision.reason, "superseded");
+});
+
+test("an applicable rule is policy context, never an answer", () => {
+  const page = search(
+    {
+      answer_status: "unverified",
+      abstain_recommended: true,
+      confidence_reason: "soft_claim_candidate",
+    },
+    [
+      row("case", { low_confidence: true, evidence_role: "related" }),
+      row("rule", { low_confidence: true, evidence_role: "applicable_rule" }),
+    ],
+  );
+  const decision = shouldAnswer(page);
+  assert.equal(decision.answer, false);
+  assert.equal(decision.reason, "applicable_rule");
+  assert.equal(decision.action, "use_as_context");
+  assert.deepEqual(decision.memories, []);
+  assert.deepEqual(decision.context.map((r) => r.memory_id), ["rule", "case"]);
+  assert.deepEqual(usableMemories(page), []);
+});
+
+test("a rule never answers an authorization question", () => {
+  const page = search(
+    {
+      answer_status: "unverified",
+      abstain_recommended: true,
+      confidence_reason: "authorization_not_verifiable",
+    },
+    [row("rule", { low_confidence: true, evidence_role: "applicable_rule" })],
+  );
+  const decision = shouldAnswer(page);
+  assert.equal(decision.answer, false);
+  assert.equal(decision.reason, "authorization_not_verifiable");
+});

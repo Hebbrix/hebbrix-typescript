@@ -94,6 +94,12 @@ export interface SearchResult {
   applies_to?: string[];
   /** match | partial | mismatch | unscoped versus `query_entities`; null when the query names none. */
   entity_match?: "match" | "partial" | "mismatch" | "unscoped" | null;
+  /**
+   * answer: certified evidence; applicable_rule: a current rule that speaks to
+   * the asked case, not verified to decide it (policy context for your model,
+   * never an authorization); related: anything else returned.
+   */
+  evidence_role?: "answer" | "applicable_rule" | "related" | null;
   /** False when a correction or a later memory replaced this one. */
   is_current?: boolean;
   /** Its standing among the versions of what it states. */
