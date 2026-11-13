@@ -41,7 +41,7 @@
  *
  * @packageDocumentation
  * @module hebbrix
- * @version 2.9.0
+ * @version 2.10.0
  */
 
 export { MemoryClient } from "./client";

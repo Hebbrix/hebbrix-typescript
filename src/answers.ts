@@ -28,6 +28,7 @@ export const ANSWER_STATUSES: readonly AnswerStatus[] = [
   "unverified",
   "indexing",
   "no_relevant_memory",
+  "unavailable",
 ];
 
 export const REVISION_STATUSES: readonly RevisionStatus[] = [
@@ -76,6 +77,9 @@ export const ANSWER_ACTIONS: Readonly<Record<AnswerStatus, AnswerAction>> = {
   unverified: "abstain",
   indexing: "retry",
   no_relevant_memory: "say_unknown",
+  // A service the evidence depends on failed for this request: retry, and
+  // never tell the user the fact is absent.
+  unavailable: "retry",
 };
 
 export interface AnswerDecision<Row = Record<string, any>> {

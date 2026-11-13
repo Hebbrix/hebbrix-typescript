@@ -409,3 +409,10 @@ test("a rule never answers an authorization question", () => {
   assert.equal(decision.answer, false);
   assert.equal(decision.reason, "authorization_not_verifiable");
 });
+
+test("a failed service is retried, never reported absent", () => {
+  const decision = shouldAnswer(search({ answer_status: "unavailable" }, []));
+  assert.equal(decision.answer, false);
+  assert.equal(decision.reason, "unavailable");
+  assert.equal(decision.action, "retry");
+});

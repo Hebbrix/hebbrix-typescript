@@ -123,7 +123,13 @@ export type AnswerStatus =
   | "superseded"
   | "unverified"
   | "indexing"
-  | "no_relevant_memory";
+  | "no_relevant_memory"
+  | "unavailable";
+
+/** Whether an answerable response covers its whole scope: `final` (every memory
+ * accepted for the scope was indexed), `provisional` (answerable from what is
+ * indexed now; a pending memory may change it) or `none` (nothing to act on). */
+export type AnswerFinality = "final" | "provisional" | "none";
 
 export type RevisionStatus =
   | "current"
@@ -151,6 +157,9 @@ export interface SearchResponse {
   abstain_recommended: boolean;
   /** What this response lets a caller do, in one value. */
   answer_status?: AnswerStatus;
+  /** `final` only when the whole scope was indexed; act on `final` for
+   * decisions that must cover the whole scope. */
+  answer_finality?: AnswerFinality;
   /** Whether memories accepted for this scope are still being indexed. */
   indexing?: ScopeIndexing | null;
   query_confidence: number;
@@ -370,6 +379,9 @@ export interface ReasoningResponse {
   abstain_recommended: boolean;
   /** What this response lets a caller do, in one value. */
   answer_status?: AnswerStatus;
+  /** `final` only when the whole scope was indexed; act on `final` for
+   * decisions that must cover the whole scope. */
+  answer_finality?: AnswerFinality;
   /** True exactly when `answer` is null. */
   decision_abstained?: boolean;
   abstain_reason?: string | null;

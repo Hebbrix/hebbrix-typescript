@@ -5,13 +5,13 @@ outcome-learning APIs.
 
 ## Install
 
-The current stable package is **2.9.0**. Start with memory storage and search, or
+The current stable package is **2.10.0**. Start with memory storage and search, or
 the three-call outcome-learning workflow below. Advanced evidence transports
 are opt-in. Installing the SDK does not grant execution permission or establish
 a learning-performance advantage.
 
 ```bash
-npm install hebbrix@2.9.0
+npm install hebbrix@2.10.0
 ```
 
 Node.js 16+ and modern browsers are supported.
